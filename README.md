@@ -1,7 +1,7 @@
 # scrape-me-again
 > WORK IN PROGRESS - some files are still missing ...
 
-*scrape-me-again is yeat another web scraping application written in Python.*
+*scrape-me-again is yet another web scraping application written in Python.*
 
 It uses **multiprocessing** heavily to get the work done quicker. [TOR](https://www.torproject.org/) in combination with [privoxy](http://www.privoxy.org/) is used for anonymity. Follow this guide for more information: [Crawling anonymously with Tor in Python](http://sacharya.com/crawling-anonymously-with-tor-in-python/).
 
