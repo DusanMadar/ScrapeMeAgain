@@ -9,13 +9,17 @@ import requests
 from stem import Signal
 from stem.control import Controller
 from time import sleep
+from random import randint
 
-from util.configparser import get_tor_port, get_tor_password
+from util.alphanumericker import string_to_ascii, comparable_string
+from util.configparser import (get_tor_port, get_tor_password,
+                               get_geocoding_language)
 
 
 #:
 tor_port = get_tor_port()
 tor_password = get_tor_password()
+geocoding_language = get_geocoding_language()
 
 geocoding_url = 'http://maps.googleapis.com/maps/api/geocode/json'
 
@@ -55,6 +59,59 @@ def get(url, timeout=15, params=None):
     log_level('%s - %s' % (response.status_code, response.url))
 
     return response
+
+
+def get_geo(address):
+    """Geocode specified address
+
+    :argument address: address components
+    :type address: tuple
+
+    :returns tuple
+
+    """
+    params = {'language': geocoding_language}
+
+    district, city, locality = address
+    if locality is None:
+        params['address'] = city
+    else:
+        ccity = comparable_string(city)
+        clocl = comparable_string(locality)
+
+        if ccity in clocl:
+            params['address'] = locality
+        else:
+            params['address'] = city + ',' + locality
+
+    if (locality is None) and (district is not None):
+        params['components'] = 'administrative_area:%s' % district
+
+    for param in ('address', 'components'):
+        if param not in params:
+            continue
+
+        params[param] = params[param].replace(' ', '+')
+        params[param] = string_to_ascii(params[param])
+
+    result = get(url=geocoding_url, params=params)
+    return result, address
+
+
+def get_rgeo(coordinates):
+    """Geocode specified coordinates
+
+    :argument coordinates: address coordinates
+    :type coordinates: tuple
+
+    :returns tuple
+
+    """
+    params = {'language': geocoding_language,
+              'latlng': ','.join([str(crdnt) for crdnt in coordinates])}
+
+    result = get(url=geocoding_url, params=params)
+    return result, coordinates
 
 
 def get_current_ip():
