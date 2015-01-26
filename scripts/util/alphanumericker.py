@@ -3,6 +3,7 @@
 """Shared alphanumeric functions"""
 
 
+from __future__ import unicode_literals
 from time import time
 from datetime import datetime
 from unicodedata import normalize
