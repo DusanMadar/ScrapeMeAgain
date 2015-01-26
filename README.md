@@ -1,4 +1,3 @@
-# scrape-me-again
 > WORK IN PROGRESS - some files are still missing ...
 
 *scrape-me-again is yet another web scraping application written in Python.*
