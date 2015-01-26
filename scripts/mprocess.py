@@ -7,8 +7,17 @@ import time
 import logging
 import multiprocessing
 
-from databaser import AdsDatabaser
-from util.networker import get, ensure_new_ip
+from geocoder import Geocoder
+from databaser import AdsDatabaser, GeoDatabaser
+from util.networker import ensure_new_ip, get, get_geo, get_rgeo
+from util.configparser import (get_scrape_processes, get_geocoding_processes,
+                               get_old_items_threshold)
+
+
+#:
+scrape_processes = get_scrape_processes()
+geocoding_processes = get_geocoding_processes()
+old_items_threshold = get_old_items_threshold()
 
 
 def empty_queues(queues):
@@ -72,8 +81,7 @@ class AdsFactory():
 
         self.stop_requesting_e = multiprocessing.Event()
 
-        # TODO: process count should be taken from config
-        self.pool = multiprocessing.Pool(processes=50)
+        self.pool = multiprocessing.Pool(processes=scrape_processes)
 
     def html_producer(self):
         """get URLs from url_q and feed html_q"""
@@ -81,8 +89,8 @@ class AdsFactory():
 
         while not self.stop_requesting_e.is_set():
             urls = []
-            # TODO: process count should be taken from config
-            for _ in range(0, 50):
+
+            for _ in range(0, scrape_processes):
                 if self.url_q.empty():
                     break
 
@@ -142,7 +150,7 @@ class AdsFactory():
                 try:
                     if scraping == 'ads':
                         # TODO: get_ad_properties should be renamed
-                        # TODO: this can work for other things as well
+                        # this can work for other things as well
                         data = self.scraper.get_ad_properties(response)
                     elif scraping == 'catalogs':
                         data = self.scraper.get_catalog_ads(response)
@@ -159,7 +167,7 @@ class AdsFactory():
         threshold have been scraped again."""
         databaser = AdsDatabaser(self.scraper.db_file, self.scraper.db_table)
         # TODO: again, rename, not only ads can be scraped
-        old_ads = 0
+        old_ads_count = 0
 
         while True:
             if self.data_q.qsize() == 0:
@@ -191,18 +199,17 @@ class AdsFactory():
                         databaser.update(data=queue_item)
                     # old ad
                     else:
-                        old_ads += 1
+                        old_ads_count += 1
 
-                        # TODO: this as well should be taken from config
-                        if old_ads > 500:
+                        if old_ads_count > old_items_threshold:
                             logging.warning('Old adds threshold exceeded')
                             self.stop_requesting_e.set()
                             break
 
                 databaser.delete(queue_item['ad_id'], databaser.urls)
             except Exception:
-                # TODO: serialize queue_item otherwise
-                logging.exception('Can\'t save data %s' % str(queue_item))
+                msg = 'Can\'t save data from: %s' % queue_item['url']
+                logging.exception(msg)
                 continue
 
     def get_ads_urls(self):
@@ -253,3 +260,213 @@ class AdsFactory():
         data_consumer_p.join()
 
         empty_queues([self.url_q, self.html_q, self.data_q])
+
+
+class GeocodingFactory(object):
+    def __init__(self, scraper):
+        """An implementation of a producer - consumer pattern.
+
+        Google Geocoding API has a limit of 5 request per second, so only 5
+        addresses are geocoded at once. Currently used IP is switched if its'
+        geocoding requests limit is depleted.
+        Ungeocoded addresses are put back to location_queue.
+
+        Processes share data using queues, where 'exit' is a signal to stop.
+        IP changing and stop requesting are event based.
+
+        :argument scraper: scraper instance
+        :type scraper: object
+
+        """
+        self.used_ips = []
+
+        self.scraper = scraper
+        self.geocoder = Geocoder()
+
+        self.json_q = multiprocessing.Queue()
+        self.data_q = multiprocessing.Queue()
+        self.localization_q = multiprocessing.Queue()
+
+        self.change_ip_e = multiprocessing.Event()
+        self.stop_requesting_e = multiprocessing.Event()
+
+        self.pool = multiprocessing.Pool(processes=geocoding_processes)
+
+    def json_producer(self, requester):
+        """Geocode localizations from localization_q and feed json_q
+
+        :argument requester: function used to form and send a geocoding request
+        :type requester: function
+
+        """
+        self.stop_requesting_e.clear()
+
+        while not self.stop_requesting_e.is_set():
+            if self.change_ip_e.is_set():
+                ensure_new_ip(used_ips=self.used_ips, store_all=True)
+                self.change_ip_e.clear()
+
+            localization = []  # tuple of address components or coordinates
+            for _ in range(0, geocoding_processes):
+                if self.localization_q.empty():
+                    break
+
+                localization.append(self.localization_q.get())
+
+            if not localization:
+                time.sleep(1)
+                continue
+
+            print self.localization_q.qsize()
+            try:
+                _result = self.pool.map(requester, localization)
+                self.json_q.put(_result)
+            except Exception:
+                logging.exception('Can\'t geocode localization')
+                continue
+
+            time.sleep(0.2)
+
+    def json_consumer(self):
+        """Parse geocoding results from json_q and put collected data
+        to the data_q. Set event if IP needs to be changed, i.e. geocoding
+        result is None, and put ungeocoded addresses back to the location_q.
+        Set event that the request sending process can proceed."""
+        idle_since = None
+
+        while True:
+            # NOTE: tested this as a shared function -> caused high CPU usage
+            if self.json_q.qsize() == 0:
+                if idle_since is None:
+                    idle_since = time.time()
+                else:
+                    time.sleep(1)
+                    now = time.time()
+
+                    if now - idle_since > 30:
+                        if not self.stop_requesting_e.is_set():
+                            if self.localization_q.qsize() == 0:
+                                idle_since = None
+                                self.stop_requesting_e.set()
+                continue
+
+            idle_since = None
+            queue_item = self.json_q.get()
+
+            if queue_item == 'exit':
+                break
+
+            for geocoding_response, addr_cmps in queue_item:
+                # TODO: investigate 403 occurrences
+                if not geocoding_response.ok:
+                    if geocoding_response.status_code >= 408:
+                        self.localization_q.put(addr_cmps)
+
+                    continue
+
+                self.geocoder.geocoding_result = geocoding_response
+                if self.geocoder.geocoding_result is None:
+                    if not self.change_ip_e.is_set():
+                        self.change_ip_e.set()
+
+                    self.localization_q.put(addr_cmps)
+                    continue
+
+                try:
+                    self.geocoder.url = geocoding_response.url
+
+                    if len(addr_cmps) == 3:
+                        self.geocoder.address_components = addr_cmps
+                        location = self.geocoder.get_coordinates()
+
+                    elif len(addr_cmps) == 2:
+                        self.geocoder.address_coordinates = addr_cmps
+                        location = self.geocoder.get_missing_components()
+
+                except Exception:
+                    msg = ('Can\'t get location: %s' % geocoding_response.url)
+                    logging.exception(msg)
+                    continue
+
+                else:
+                    if isinstance(location, tuple):
+                        self.localization_q.put(location)
+                        continue
+                    elif location is None:
+                        continue
+
+                    self.data_q.put(location)
+
+    def data_consumer(self):
+        """Write geocoded data from data_q to the database"""
+        databaser = GeoDatabaser()
+
+        while True:
+            if self.data_q.qsize() == 0:
+                time.sleep(1)
+                continue
+
+            g_data = self.data_q.get()
+
+            if g_data == 'exit':
+                break
+
+            try:
+                if 'completion' in g_data:
+                    del g_data['completion']
+                    databaser.complete_record(g_data)
+                else:
+                    if databaser.is_stored(g_data):
+                        continue
+
+                    databaser.insert(g_data)
+            except Exception:
+                logging.exception('Can\'t save data: %s' % str(g_data))
+                continue
+
+    def geocode(self):
+        """Put addresses from to_geocode list to the location_q. Manage IPs -
+        store used IPs as these can not be re-used, get a new one when
+        change_ip_e event is set [json_consumermanages this]."""
+        ads_databaser = AdsDatabaser(self.scraper.db_file,
+                                     self.scraper.db_table)
+        to_geocode = ads_databaser.to_geocode()
+        geo_databaser = GeoDatabaser()
+
+        # TODO: this is just way too slow ...
+        for addr_cmps in to_geocode:
+            if geo_databaser.is_stored(addr_cmps):
+                continue
+
+            self.localization_q.put(addr_cmps)
+
+        ensure_new_ip(used_ips=self.used_ips)
+
+        json_consumer_p = multiprocessing.Process(target=self.json_consumer)
+        json_consumer_p.daemon = True
+        json_consumer_p.start()
+
+        data_consumer_p = multiprocessing.Process(target=self.data_consumer)
+        data_consumer_p.daemon = True
+        data_consumer_p.start()
+
+        # get coordinates for new addresses
+        self.json_producer(requester=get_geo)
+
+        incomplete_records = geo_databaser.get_incomplete_records()
+        for incomplete_record in incomplete_records:
+            self.localization_q.put(incomplete_record)
+
+        # add missing localization attributes for cached addresses
+        self.json_producer(requester=get_rgeo)
+
+        self.json_q.put('exit')
+        json_consumer_p.join()
+
+        self.data_q.put('exit')
+        data_consumer_p.join()
+
+        empty_queues([self.localization_q, self.json_q, self.data_q])
+
+        geo_databaser.update_record_from_self()
+        ads_databaser.update_location_data()
