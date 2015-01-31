@@ -12,6 +12,7 @@ to Spatialite by adding a 2D geometry (Point) column in WGS-84 and all Spatialit
 
 ## Requirements
 * Python 2.7.6
+* SQLite 3.8.2
 * SQLAlch.emy==0.9.7
 * argparse==1.2.1
 * beautifulsoup4==4.3.2
