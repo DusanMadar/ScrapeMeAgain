@@ -7,6 +7,8 @@ It uses **multiprocessing** heavily to get the work done quicker. [TOR](https://
 Collected data are stored in a [SQLite](http://www.sqlite.org/) database, which structure is defined using [SQLAlchemy](http://www.sqlalchemy.org/).
 
 There is a **geocoding** module if you would like to get coordinates for your collected data.
+Also, a helper script for **spatially enabling a SQLite database** is present. This script actually converts the database
+to Spatialite by adding a 2D geometry (Point) column in WGS-84 and all Spatialite required stuff.
 
 ## Requirements
 * Python 2.7.6
