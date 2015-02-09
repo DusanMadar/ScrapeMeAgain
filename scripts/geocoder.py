@@ -25,6 +25,7 @@ class Geocoder(object):
     #: prefix 'g_' -> geocoded data
     #: abbreviation 'cmp' -> component
 
+    basic_address_components = ('district', 'city', 'locality')
     missing_cmps_types = [('administrative_area_level_1', 'region'),
                           ('administrative_area_level_2', 'district')]
 
@@ -56,6 +57,27 @@ class Geocoder(object):
         precisions = [float_precision(crdnt) for crdnt in coordinates]
 
         return max(precisions)
+
+    def _extract_basic_addr_cmps(self, result):
+        """Extract the basic address components
+
+        :argument result: geocoded data
+        :type result: dict
+
+        :returns tuple
+
+        """
+        g_basic_addr_components = []
+
+        for key in self.basic_address_components:
+            cmp_value = None
+
+            if key in result:
+                cmp_value = result[key]
+
+            g_basic_addr_components.append(cmp_value)
+
+        return tuple(g_basic_addr_components)
 
     def _clear_from_cache(self, coordinates, result):
         """Clear coordinates from partial cache and reset original coordinates
@@ -346,8 +368,9 @@ class Geocoder(object):
         result['longitude'] = round(result['longitude'], 5)
         result = normalize_address(result)
 
+        g_addr_cmps = self._extract_basic_addr_cmps(result)
+        g_valid_for = comparable_address(g_addr_cmps)
         r_valid_for = comparable_address(self.address_components)
-        g_valid_for = comparable_address(result)
 
         if r_valid_for != g_valid_for:
             result['valid_for'] = r_valid_for + '|' + g_valid_for
@@ -475,9 +498,8 @@ class Geocoder(object):
         """
         self._addr_cmps = OrderedDict()
 
-        self._addr_cmps['district'] = addr_cmps[0]
-        self._addr_cmps['city'] = addr_cmps[1]
-        self._addr_cmps['locality'] = addr_cmps[2]
+        for index, key in enumerate(self.basic_address_components):
+            self._addr_cmps[key] = addr_cmps[index]
 
     @property
     def address_coordinates(self):
