@@ -3,6 +3,7 @@
 """Multiprocess I/O intensive tasks to maximize performance"""
 
 
+import abc
 import time
 import logging
 import multiprocessing
@@ -14,160 +15,221 @@ from util.configparser import (get_scrape_processes, get_geocoding_processes,
                                get_old_items_threshold)
 
 
-#:
+#: constants
+__geo__ = 'geo'
+__ads__ = 'ads'
+__exit__ = 'exit'
+__catalogs__ = 'catalogs'
 scrape_processes = get_scrape_processes()
 geocoding_processes = get_geocoding_processes()
 old_items_threshold = get_old_items_threshold()
 
 
-def empty_queues(queues):
-    """Make sure all used queues are empty
-
-    :argument queues: list of used queues
-    :type queues: list (of `multiprocessing.Queue`s)
-
-    """
-    for queue in queues:
-        items = 0
-        while not queue.qsize() == 0:
-            queue.get()
-            items += 1
-
-        if items != 0:
-            logging.warning('%s items removed from %s' % (items, queue))
-
-
-class AdsFactory():
-    def __init__(self, scraper):
+class ProducerConsumer(object):
+    def __init__(self, scraper, processes):
         """An implementation of a producer - consumer pattern.
 
-        First of all URL addresses needs to be collected. Catalog URLs can be
-        generated as these obey a given pattern. Then catalogs URLs are scraped
-        and collected ads URLs are stored the database, from which they are
-        sequentially processed using the following procedure.
-
         Basic idea is to have a pool of producer processes which performs
-        HTTP GET requests and feeds the HTML queue (html_q) with lists of
-        requests responses.
+        HTTP GET requests and feeds the `responses_q` with lists of requests
+        responses. This pool of producer processes is operating upon data from
+        the `target_q`, which items can be of various type, depending on what
+        kind of data is actually being scraped.
 
-        Collected responses are processed in another separate process which
-        gets the response from HTML queue, scrapes the HTML and pass the
-        crunched dictionary data to the DATA queue (data_q).
+        Collected responses are processed in a separate process which gets the
+        response from `responses_q`, processes the data and pass the crunched
+        dictionary to the `data_q`.
 
         The data consumer (yet another separate process) process gets scraped
-        data from the DATA queue and store (or whatever) them in the database.
+        data from the `data_q` and store them in the database.
 
-        So the basic pattern is:
-        1. get ads URLs
-        catalogs URLs -> pool -> html_q -> html_consumer -> db
+        All abstract methods must be implemented by all successor classes,
+        which knows exactly what and how to do.
+        Also, `databaser_type` must be set by the all successor classes.
 
-        2. scrape ads HTML
-        db -> pool -> html_q -> html_consumer -> data_q -> data_consumer -> db
-
+        Stop issuing requests is an event based action.
         Processes share data using queues, where 'exit' is a signal to stop.
-        IP address is changed using TOR after each bunch of requests.
 
         :argument scraper: scraper instance
-        :type scraper: object
-        :argument databaser: databaser instance
-        :type databaser: object
+        :type scraper: `:class:Scraper`
+        :argument processes: number of processes to be used
+        :type processes: int
 
         """
         self.scraper = scraper
 
-        self.url_q = multiprocessing.Queue()    # strings
-        self.html_q = multiprocessing.Queue()   # lists
-        self.data_q = multiprocessing.Queue()   # dictionaries
+        self.databaser_type = None
+        self.transaction_items = 0
+
+        self.target_q = multiprocessing.Queue()
+        self.responses_q = multiprocessing.Queue()
+        self.data_q = multiprocessing.Queue()
+
+        self.queues = [('target_q', self.target_q),
+                       ('responses_q', self.responses_q),
+                       ('data_q', self.data_q)]
 
         self.stop_requesting_e = multiprocessing.Event()
 
-        self.pool = multiprocessing.Pool(processes=scrape_processes)
+        self.processes = processes
+        self.pool = multiprocessing.Pool(processes=processes)
 
-    def html_producer(self):
-        """get URLs from url_q and feed html_q"""
+    @abc.abstractmethod
+    def manage_ip(self):
+        """Manage IP address manipulation - when to switch it"""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def collect_data(self, queue_item):
+        """Collect data - which and how, put collected data to the `data_q`"""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def store_data(self, queue_item, databaser):
+        """Store data - what checks should be performed and where to save"""
+        raise NotImplementedError()
+
+    def create_databaser(self, databaser_type=None):
+        """Dispatcher providing appropriate databaser instance
+
+        :argument databaser_type: databaser type
+        :type databaser_type: str
+
+        :returns `:class:Databaser`
+
+        """
+        if databaser_type is None:
+            databaser_type = self.databaser_type
+
+        if databaser_type is None:
+            raise ValueError('Databaser type not set')
+
+        elif databaser_type == __ads__:
+            dtbsr = AdsDatabaser(self.scraper.db_file, self.scraper.db_table)
+
+        elif databaser_type == __geo__:
+            dtbsr = GeoDatabaser()
+
+        else:
+            msg = 'Unsupported databaser type "%s"' % self.databaser_type
+            raise ValueError(msg)
+
+        return dtbsr
+
+    def commit_checker(self, databaser, queue_item, transaction_size):
+        """Commit changes if transaction size is exceeded.
+        Large transactions are better for SQLite performance with normal
+        synchronization mode (using db-journal), i.e. no need for the
+        `pragma synchronous=OFF`, which was used when each change was committed
+        separately.
+
+        :argument databaser: databaser instance
+        :type databaser: `:class:Databaser`
+        :argument queue_item:
+        :type queue_item: list or dict
+        :argument transaction_size: transaction size
+        :type transaction_size: int
+
+        """
+        if isinstance(queue_item, list):
+            self.transaction_items += len(queue_item)
+        else:
+            self.transaction_items += 1
+
+        if self.transaction_items >= transaction_size:
+            self.transaction_items = 0
+            databaser.commit()
+
+    def empty_queues(self):
+        """Make sure all queues are empty to prevent endless processes"""
+        for qname, queue in self.queues:
+            items = 0
+            while not queue.qsize() == 0:
+                queue.get()
+                items += 1
+
+            if items != 0:
+                logging.warning('%s items removed from %s' % (items, qname))
+
+    def produce_data(self, requester=None, wait=False):
+        """Issue HTTP GET requests, put responses to the `responses_q`
+
+        :argument requester: function used to issue the GET request
+        :type requester: function
+        :argument wait: flag if wait after issuing requests
+        :type wait: bool
+
+        """
         self.stop_requesting_e.clear()
 
-        while not self.stop_requesting_e.is_set():
-            urls = []
+        if requester is None:
+            requester = get
 
-            for _ in range(0, scrape_processes):
-                if self.url_q.empty():
+        while not self.stop_requesting_e.is_set():
+            targets = []
+
+            for _ in range(0, self.processes):
+                if self.target_q.empty():
                     break
 
-                urls.append(self.url_q.get())
+                targets.append(self.target_q.get())
 
-            if not urls:
+            if not targets:
                 time.sleep(1)
                 continue
 
-            ensure_new_ip(used_ips=self.scraper.used_ips)
+            self.manage_ip()
 
             try:
-                _result = self.pool.map(get, urls)
-                self.html_q.put(_result)
+                responses = self.pool.map(requester, targets)
+                self.responses_q.put(responses)
             except Exception:
-                logging.exception('Can\'t get HTML')
+                logging.exception('Failed producing data')
                 continue
 
-    def html_consumer(self, scraping):
-        """Scrape HTML from the html_q and put collected data to the data_q.
-        Consumer process for both catalog and ad pages.
+            if wait:
+                time.sleep(0.2)
 
-        :argument scraping: indicate if scraping `catalogs` or `ads`
-        :type scraping: str
-
-        """
+    def process_data(self):
+        """Process responses from `responses_q`. Given implementation of the
+        `collect_data` method knows exactly what to do and eventually put
+        processed data to the `data_q`."""
         idle_since = None
 
         while True:
-            # NOTE: tested this as a shared function -> caused high CPU usage
-            if self.html_q.qsize() == 0:
+            if self.responses_q.qsize() == 0:
                 if idle_since is None:
                     idle_since = time.time()
                 else:
                     time.sleep(1)
                     now = time.time()
+                    idle_for = now - idle_since
 
-                    if now - idle_since > 30:
+                    if idle_for > 30:
                         if not self.stop_requesting_e.is_set():
-                            if self.url_q.qsize() == 0:
+                            if self.target_q.qsize() == 0:
                                 idle_since = None
                                 self.stop_requesting_e.set()
+
+                    # be sure the process is not running forever
+                    if idle_for > 120:
+                        if not self.stop_requesting_e.is_set():
+                            self.stop_requesting_e.set()
+
                 continue
 
             idle_since = None
-            queue_item = self.html_q.get()
+            queue_item = self.responses_q.get()
 
-            if queue_item == 'exit':
+            if queue_item == __exit__:
                 break
 
-            for response in queue_item:
-                if not response.ok:
-                    if response.status_code >= 408:
-                        self.url_q.put(response.url)
-                        continue
+            self.collect_data(queue_item)
 
-                try:
-                    if scraping == 'ads':
-                        # TODO: get_ad_properties should be renamed
-                        # this can work for other things as well
-                        data = self.scraper.get_ad_properties(response)
-                    elif scraping == 'catalogs':
-                        data = self.scraper.get_catalog_ads(response)
-
-                    self.data_q.put(data)
-                except Exception:
-                    msg = 'Can\'t scrape %s: %s' % (scraping, response.url)
-                    logging.exception(msg)
-                    continue
-
-    def data_consumer(self):
-        """Write scraped data stored in the data_q to the database. Stop
-        all processes if the the old data (already stored in the database)
-        threshold have been scraped again."""
-        databaser = AdsDatabaser(self.scraper.db_file, self.scraper.db_table)
-        # TODO: again, rename, not only ads can be scraped
-        old_ads_count = 0
+    def consume_data(self):
+        """Write processed data from the `data_q` to the database. Given
+        implementation of the `store_data` method knows exactly what to do and
+        where the data should be stored eventually."""
+        databaser = self.create_databaser()
 
         while True:
             if self.data_q.qsize() == 0:
@@ -175,298 +237,341 @@ class AdsFactory():
                 continue
 
             queue_item = self.data_q.get()
-            if queue_item == 'exit':
+            if queue_item == __exit__:
                 break
 
             try:
-                # saving URLs
-                if isinstance(queue_item, list):
-                    databaser.insert_multiple(queue_item, databaser.urls)
+                self.store_data(queue_item, databaser)
+            except Exception:
+                logging.exception('Failed consuming data')
+                continue
+
+        if self.transaction_items > 0:
+            databaser.commit()
+
+
+class AdsFactory(ProducerConsumer):
+    def __init__(self, scraper):
+        """
+        First of all all URL addresses needs to be collected. Catalog URLs can
+        be generated as these obey a given pattern. Then catalogs URLs are
+        scraped and collected ads URLs are stored in the database, from which
+        they are sequentially (multi) processed and eventually saved.
+
+        1. get ads URLs
+        generate_catalog_urls() -> target_q -> produce_data() -> responses_q ->
+        process_data() -> data_q -> store_data() -> scraper database
+
+        2. get ads data
+        scraper database -> target_q -> produce_data() -> responses_q ->
+        process_data() -> data_q -> store_data() -> scraper database
+
+        IP address is changed after each bunch of requests.
+
+        `scraping` attribute is used to specify what is being scraped, i.e. if
+        catalogs or ads.
+
+        `target_q` in this implementation is filled with URLs (catalog or ad).
+
+        :argument scraper: scraper instance
+        :type scraper: `:class:Scraper`
+
+        """
+        super(AdsFactory, self).__init__(scraper=scraper,
+                                         processes=scrape_processes)
+
+        self.scraping = None
+        self.old_ads_count = 0
+        self.databaser_type = __ads__
+
+    def manage_ip(self):
+        """Just set new IP address after each bunch of requests"""
+        ensure_new_ip(used_ips=self.scraper.used_ips)
+
+    def collect_data(self, queue_item):
+        """Collect and process ads URLs (catalogs) or ads data (ads).
+        Time-outed responses are scraped again. Feed `data_q`."""
+        for response in queue_item:
+            if not response.ok:
+                if response.status_code >= 408:
+                    self.target_q.put(response.url)
                     continue
 
-                # ad not found - remove if was stored during previous scrapes
-                if len(queue_item) == 1:
-                    if databaser.is_stored(queue_item['ad_id']):
-                        databaser.delete(queue_item['ad_id'])
-                # new ad
-                elif not databaser.is_stored(queue_item['ad_id']):
-                    databaser.insert(queue_item)
-                else:
-                    db_ts = databaser.get_timestamp(queue_item['ad_id'])
+            try:
+                if self.scraping == __ads__:
+                    data = self.scraper.get_ad_properties(response)
+                elif self.scraping == __catalogs__:
+                    data = self.scraper.get_catalog_ads(response)
 
-                    # updated ad
-                    if queue_item['last_update'] > db_ts:
-                        databaser.update(data=queue_item)
-                    # old ad
-                    else:
-                        old_ads_count += 1
+                self.data_q.put(data)
 
-                        if old_ads_count > old_items_threshold:
-                            logging.warning('Old adds threshold exceeded')
-                            self.stop_requesting_e.set()
-                            break
-
-                databaser.delete(queue_item['ad_id'], databaser.urls)
             except Exception:
-                msg = 'Can\'t save data from: %s' % queue_item['url']
+                msg = 'Can\'t scrape %s: %s' % (self.scraping, response.url)
                 logging.exception(msg)
                 continue
 
-    def get_ads_urls(self):
-        """Generate catalogs URLs and store collected ads URLs in the db"""
-        catalog_consumer_p = multiprocessing.Process(target=self.html_consumer,
-                                                     args=('catalogs',))
-        catalog_consumer_p.daemon = True
+    def store_data(self, queue_item, databaser):
+        """Store adds URLs and add data"""
+        # saving URLs
+        if isinstance(queue_item, list):
+            databaser.insert_multiple(queue_item, databaser.urls)
 
-        url_consumer_p = multiprocessing.Process(target=self.data_consumer)
-        url_consumer_p.daemon = True
+            self.commit_checker(databaser, queue_item, 5000)
+
+        # saving adds
+        else:
+            # ad not found - remove if was stored during previous scrapes
+            if len(queue_item) == 1:
+                if databaser.is_stored(queue_item['ad_id']):
+                    databaser.delete(queue_item['ad_id'])
+
+            # new ad
+            elif not databaser.is_stored(queue_item['ad_id']):
+                databaser.insert(queue_item)
+
+            else:
+                db_ts = databaser.get_timestamp(queue_item['ad_id'])
+
+                # updated ad
+                if queue_item['last_update'] > db_ts:
+                    databaser.update(data=queue_item)
+                # old ad
+                else:
+                    self.old_ads_count += 1
+
+                    if self.old_ads_count > old_items_threshold:
+                        logging.warning('Old adds threshold exceeded')
+                        self.stop_requesting_e.set()
+
+            # remove add URL from urls table
+            databaser.delete(queue_item['ad_id'], databaser.urls)
+
+            self.commit_checker(databaser, queue_item, 2000)
+
+    def get_ads_urls(self):
+        """Generate catalogs URLs, store collected ads URLs in the database"""
+        self.scraping = __catalogs__
+
+        ads_urls_processor = multiprocessing.Process(target=self.process_data)
+        ads_urls_processor.daemon = True
+
+        ads_urls_consumer = multiprocessing.Process(target=self.consume_data)
+        ads_urls_consumer.daemon = True
 
         # TODO: start and end should be taken from the parent script
-        catalogs = self.scraper.generate_catalog_urls(start=100, end=0)
+        catalogs = self.scraper.generate_catalog_urls(start=10, end=0)
         for catalog in catalogs:
-            self.url_q.put(catalog)
+            self.target_q.put(catalog)
 
-        catalog_consumer_p.start()
-        url_consumer_p.start()
-        self.html_producer()
+        ads_urls_processor.start()
+        ads_urls_consumer.start()
+        self.produce_data()
 
-        self.html_q.put('exit')
-        catalog_consumer_p.join()
+        self.responses_q.put(__exit__)
+        ads_urls_processor.join()
 
-        self.data_q.put('exit')
-        url_consumer_p.join()
+        self.data_q.put(__exit__)
+        ads_urls_consumer.join()
+
+        self.empty_queues()
 
     def get_ads_data(self):
-        """Parse ads HTML and store collected data in the database"""
-        ad_consumer_p = multiprocessing.Process(target=self.html_consumer,
-                                                args=('ads',))
-        ad_consumer_p.daemon = True
+        """Parse ads HTML, store collected data in the database"""
+        self.scraping = __ads__
 
-        data_consumer_p = multiprocessing.Process(target=self.data_consumer)
-        data_consumer_p.daemon = True
+        ads_data_processor = multiprocessing.Process(target=self.process_data)
+        ads_data_processor.daemon = True
 
-        databaser = AdsDatabaser(self.scraper.db_file, self.scraper.db_table)
+        ads_data_consumer = multiprocessing.Process(target=self.consume_data)
+        ads_data_consumer.daemon = True
+
+        databaser = self.create_databaser()
         for add_url in databaser.urls_get_all():
-            self.url_q.put(add_url[0])
+            self.target_q.put(add_url[0])
 
-        ad_consumer_p.start()
-        data_consumer_p.start()
-        self.html_producer()
+        ads_data_processor.start()
+        ads_data_consumer.start()
+        self.produce_data()
 
-        self.html_q.put('exit')
-        ad_consumer_p.join()
+        self.responses_q.put(__exit__)
+        ads_data_processor.join()
 
-        self.data_q.put('exit')
-        data_consumer_p.join()
+        self.data_q.put(__exit__)
+        ads_data_consumer.join()
 
-        empty_queues([self.url_q, self.html_q, self.data_q])
+        self.empty_queues()
 
 
-class GeocodingFactory(object):
+class GeocodingFactory(ProducerConsumer):
     def __init__(self, scraper):
-        """An implementation of a producer - consumer pattern.
-
-        Google Geocoding API has a limit of 5 request per second, so only 5
+        """
+        This class is responsible for geocoding location data which can be
+        scraped alongside target data by scrapers.
+        Google Geocoding API is used to transform locations to coordinates and
+        vice versa. This API has a limit of 5 request per second, so only 5
         addresses are geocoded at once. Currently used IP is switched if its'
-        geocoding requests limit is depleted.
-        Ungeocoded addresses are put back to location_queue.
+        geocoding requests limit is depleted. This IP is also remembered, so it
+        can't be used again as it would be worthless.
 
-        Processes share data using queues, where 'exit' is a signal to stop.
+        So locations to geocode are taken from a given scraper database and
+        then loaded to the `target_q`. Location can be a tuple of either a
+        `district`, `city` and `locality` for traditional geocoding or
+        `latitude` and `longitude` for reverse geocoding.
+        These locations are then requested for geocoding using special
+        requesting methods which constructs the URL and issue the actual GET
+        request. Results are then passed to the `responses_q`. Time-outed
+        requests (location related to the request) are put back to the
+        `target_q`.
+        `responses_q` items are processed accordingly based on what kind of
+        location is being geocoded.
+        Crunched data are then passed to the `data_q` and stored in a separate
+        geocoding (cache-like) database which is shared by all scrapers.
+
+        Incomplete records (i.e. `country` or `region` or `district` is
+        missing) are then reverse geocoded by their coordinates to get these
+        missing data.
+
+        Finally, if some information are still missing, these kind of records
+        are updated based on similar records from the geocoding cache database
+        itself.
+
+        1. geocode locations
+        scraper database -> target_q -> produce_data() using get_geo() ->
+        responses_q -> process_data() using get_coordinates() -> data_q ->
+        store_data() -> geocoding database
+
+        2. reverse geocode for missing data
+        geocoding database -> target_q -> produce_data() using get_rgeo() ->
+        responses_q -> process_data() using get_missing_components() ->
+        data_q -> store_data() -> geocoding database
+
+        3. add missing based on self
+        geocoding database -> geocoding database
+
         IP changing and stop requesting are event based.
 
         :argument scraper: scraper instance
-        :type scraper: object
+        :type scraper: `:class:Scraper`
 
         """
-        self.used_ips = []
+        super(GeocodingFactory, self).__init__(scraper=scraper,
+                                               processes=geocoding_processes)
 
         self.scraper = scraper
         self.geocoder = Geocoder()
 
-        self.json_q = multiprocessing.Queue()
-        self.data_q = multiprocessing.Queue()
-        self.localization_q = multiprocessing.Queue()
-
+        self.used_ips = []
+        self.databaser_type = __geo__
         self.change_ip_e = multiprocessing.Event()
-        self.stop_requesting_e = multiprocessing.Event()
 
-        self.pool = multiprocessing.Pool(processes=geocoding_processes)
+    def manage_ip(self):
+        """Set new IP address if current limit is depleted"""
+        if self.change_ip_e.is_set():
+            ensure_new_ip(used_ips=self.used_ips, store_all=True)
+            self.change_ip_e.clear()
 
-    def json_producer(self, requester):
-        """Geocode localizations from localization_q and feed json_q
+    def collect_data(self, queue_item):
+        """Collect and parse geocoding results from `results_q` and put
+        collected data to the `data_q`. Set event if IP needs to be changed,
+        i.e. geocoding result is None, and put ungeocoded addresses back to
+        the `target_q`."""
+        for geocoding_response, addr_cmps in queue_item:
+            # TODO: investigate 403 occurrences
+            if not geocoding_response.ok:
+                if geocoding_response.status_code >= 408:
+                    self.target_q.put(addr_cmps)
 
-        :argument requester: function used to form and send a geocoding request
-        :type requester: function
-
-        """
-        self.stop_requesting_e.clear()
-
-        while not self.stop_requesting_e.is_set():
-            if self.change_ip_e.is_set():
-                ensure_new_ip(used_ips=self.used_ips, store_all=True)
-                self.change_ip_e.clear()
-
-            localization = []  # tuple of address components or coordinates
-            for _ in range(0, geocoding_processes):
-                if self.localization_q.empty():
-                    break
-
-                localization.append(self.localization_q.get())
-
-            if not localization:
-                time.sleep(1)
                 continue
 
-            print self.localization_q.qsize()
-            try:
-                _result = self.pool.map(requester, localization)
-                self.json_q.put(_result)
-            except Exception:
-                logging.exception('Can\'t geocode localization')
+            self.geocoder.geocoding_result = geocoding_response
+            if self.geocoder.geocoding_result is None:
+                if not self.change_ip_e.is_set():
+                    self.change_ip_e.set()
+
+                self.target_q.put(addr_cmps)
                 continue
-
-            time.sleep(0.2)
-
-    def json_consumer(self):
-        """Parse geocoding results from json_q and put collected data
-        to the data_q. Set event if IP needs to be changed, i.e. geocoding
-        result is None, and put ungeocoded addresses back to the location_q.
-        Set event that the request sending process can proceed."""
-        idle_since = None
-
-        while True:
-            # NOTE: tested this as a shared function -> caused high CPU usage
-            if self.json_q.qsize() == 0:
-                if idle_since is None:
-                    idle_since = time.time()
-                else:
-                    time.sleep(1)
-                    now = time.time()
-
-                    if now - idle_since > 30:
-                        if not self.stop_requesting_e.is_set():
-                            if self.localization_q.qsize() == 0:
-                                idle_since = None
-                                self.stop_requesting_e.set()
-                continue
-
-            idle_since = None
-            queue_item = self.json_q.get()
-
-            if queue_item == 'exit':
-                break
-
-            for geocoding_response, addr_cmps in queue_item:
-                # TODO: investigate 403 occurrences
-                if not geocoding_response.ok:
-                    if geocoding_response.status_code >= 408:
-                        self.localization_q.put(addr_cmps)
-
-                    continue
-
-                self.geocoder.geocoding_result = geocoding_response
-                if self.geocoder.geocoding_result is None:
-                    if not self.change_ip_e.is_set():
-                        self.change_ip_e.set()
-
-                    self.localization_q.put(addr_cmps)
-                    continue
-
-                try:
-                    self.geocoder.url = geocoding_response.url
-
-                    if len(addr_cmps) == 3:
-                        self.geocoder.address_components = addr_cmps
-                        location = self.geocoder.get_coordinates()
-
-                    elif len(addr_cmps) == 2:
-                        self.geocoder.address_coordinates = addr_cmps
-                        location = self.geocoder.get_missing_components()
-
-                except Exception:
-                    msg = ('Can\'t get location: %s' % geocoding_response.url)
-                    logging.exception(msg)
-                    continue
-
-                else:
-                    if isinstance(location, tuple):
-                        self.localization_q.put(location)
-                        continue
-                    elif location is None:
-                        continue
-
-                    self.data_q.put(location)
-
-    def data_consumer(self):
-        """Write geocoded data from data_q to the database"""
-        databaser = GeoDatabaser()
-
-        while True:
-            if self.data_q.qsize() == 0:
-                time.sleep(1)
-                continue
-
-            g_data = self.data_q.get()
-
-            if g_data == 'exit':
-                break
 
             try:
-                if 'completion' in g_data:
-                    del g_data['completion']
-                    databaser.complete_record(g_data)
-                else:
-                    if databaser.is_stored(g_data):
-                        continue
+                self.geocoder.url = geocoding_response.url
 
-                    databaser.insert(g_data)
+                if len(addr_cmps) == 3:
+                    self.geocoder.address_components = addr_cmps
+                    location = self.geocoder.get_coordinates()
+
+                elif len(addr_cmps) == 2:
+                    self.geocoder.address_coordinates = addr_cmps
+                    location = self.geocoder.get_missing_components()
+
             except Exception:
-                logging.exception('Can\'t save data: %s' % str(g_data))
+                msg = ('Can\'t geocode location: %s' % geocoding_response.url)
+                logging.exception(msg)
                 continue
+
+            else:
+                if isinstance(location, tuple):
+                    self.target_q.put(location)
+                    continue
+                elif location is None:
+                    continue
+
+                self.data_q.put(location)
+
+    def store_data(self, queue_item, databaser):
+        """Store geocoded locations and reverse geocoded completion data"""
+        if 'completion' in queue_item:
+            del queue_item['completion']
+            databaser.complete_record(queue_item)
+        else:
+            if not databaser.is_stored(queue_item):
+                databaser.insert(queue_item)
+
+        self.commit_checker(databaser, queue_item, 100)
 
     def geocode(self):
-        """Put addresses from to_geocode list to the location_q. Manage IPs -
-        store used IPs as these can not be re-used, get a new one when
-        change_ip_e event is set [json_consumermanages this]."""
-        ads_databaser = AdsDatabaser(self.scraper.db_file,
-                                     self.scraper.db_table)
+        """Put addresses from to_geocode list to the `target_q`. Manage IPs -
+        store all used IPs as these can not be re-used, get a new one when
+        change_ip_e event is set."""
+        ads_databaser = self.create_databaser(__ads__)
         to_geocode = ads_databaser.to_geocode()
-        geo_databaser = GeoDatabaser()
+        databaser = self.create_databaser(__geo__)
 
         # TODO: this is just way too slow ...
         for addr_cmps in to_geocode:
-            if geo_databaser.is_stored(addr_cmps):
+            if databaser.is_stored(addr_cmps):
                 continue
 
-            self.localization_q.put(addr_cmps)
+            self.target_q.put(addr_cmps)
 
         ensure_new_ip(used_ips=self.used_ips)
 
-        json_consumer_p = multiprocessing.Process(target=self.json_consumer)
-        json_consumer_p.daemon = True
-        json_consumer_p.start()
+        geocoding_processor = multiprocessing.Process(target=self.process_data)
+        geocoding_processor.daemon = True
+        geocoding_processor.start()
 
-        data_consumer_p = multiprocessing.Process(target=self.data_consumer)
-        data_consumer_p.daemon = True
-        data_consumer_p.start()
+        geocoding_consumer = multiprocessing.Process(target=self.consume_data)
+        geocoding_consumer.daemon = True
+        geocoding_consumer.start()
 
         # get coordinates for new addresses
-        self.json_producer(requester=get_geo)
+        self.produce_data(requester=get_geo, wait=True)
 
-        incomplete_records = geo_databaser.get_incomplete_records()
+        incomplete_records = databaser.get_incomplete_records()
         for incomplete_record in incomplete_records:
-            self.localization_q.put(incomplete_record)
+            self.target_q.put(incomplete_record)
 
         # add missing localization attributes for cached addresses
-        self.json_producer(requester=get_rgeo)
+        self.produce_data(requester=get_rgeo, wait=True)
 
-        self.json_q.put('exit')
-        json_consumer_p.join()
+        self.responses_q.put(__exit__)
+        geocoding_processor.join()
 
-        self.data_q.put('exit')
-        data_consumer_p.join()
+        self.data_q.put(__exit__)
+        geocoding_consumer.join()
 
-        empty_queues([self.localization_q, self.json_q, self.data_q])
+        self.empty_queues()
 
-        geo_databaser.update_record_from_self()
+        # TODO: successful only on second run - debug why
+        databaser.update_record_from_self()
+
+        # TODO: this maybe should not be here (add to docstring if it should)
         ads_databaser.update_location_data()
