@@ -5,11 +5,9 @@
 
 import os
 import logging
-import subprocess
 
-from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine, and_, or_, distinct, event
+from sqlalchemy import create_engine, and_, or_, distinct
 
 from models import UrlsTable, GeocodedTable
 from util.addresser import comparable_address
@@ -22,18 +20,12 @@ data_dir = get_data_directory()
 ungeocoded_coordinate = get_ungeocoded_coordinate()
 
 
-@event.listens_for(Engine, "connect")
-def _synchronous_pragma_on_connect(engine, _):
-    """Do not wait till the data are stored to disk on each commit"""
-    engine.execute('pragma synchronous=OFF')
-
-
 class Databaser(object):
     def __init__(self, db_file):
         """Database manipulation class
 
-        :argument db_file:
-        :type db_file:
+        :argument db_file: database file name
+        :type db_file: str
         :argument db_table: SAQAlchemy table
         :type db_table:
 
@@ -56,6 +48,15 @@ class Databaser(object):
         db_table.__table__.create(self.engine, checkfirst=True)
         return db_table
 
+    def commit(self):
+        """Commit changes"""
+        try:
+            self.session.commit()
+            logging.critical('Changes successfully committed')
+        except:
+            logging.exception('Failed to commit changes, rolling back ...')
+            self.session.rollback()
+
     def insert(self, data, table=None):
         """Insert
 
@@ -76,7 +77,6 @@ class Databaser(object):
             setattr(row, key, value)
 
         self.session.add(row)
-        self.session.commit()
 
     def insert_multiple(self, data, table=None):
         """Insert multiple
@@ -98,7 +98,6 @@ class Databaser(object):
             data[index] = row
 
         self.session.add_all(data)
-        self.session.commit()
 
     def delete(self, id_, table=None):
         """Delete
@@ -114,7 +113,6 @@ class Databaser(object):
 
         query = self.session.query(table).filter(table.ad_id == id_)
         query.delete()
-        self.session.commit()
 
 
 class AdsDatabaser(Databaser):
@@ -134,7 +132,6 @@ class AdsDatabaser(Databaser):
         _filter = self.table.ad_id == data['ad_id']
         query = self.session.query(self.table).filter(_filter)
         query.update(data)
-        self.session.commit()
 
     def is_stored(self, ad_id):
         """Check if ad is already in the database
@@ -170,6 +167,7 @@ class AdsDatabaser(Databaser):
         :returns list
 
         """
+        # TODO: select distinct
         return [row for row in
                 self.session.query(self.table.district,
                                    self.table.city,
@@ -227,11 +225,9 @@ class AdsDatabaser(Databaser):
                            self.table.locality == addr_cmps[2])
             query = self.session.query(self.table).filter(_filter)
 
-            try:
-                query.update(location_data)
-                self.session.commit()
-            except:
-                query.rollback()
+            query.update(location_data)
+
+        self.commit()
 
     def _urls_remove_duplicate(self):
         """Remove duplicate URLs"""
@@ -262,6 +258,7 @@ class AdsDatabaser(Databaser):
 
 
 class GeoDatabaser(Databaser):
+    # TODO: prevent duplicates
     def __init__(self):
         super(GeoDatabaser, self).__init__(db_file='geocodingcache.db')
 
@@ -319,8 +316,6 @@ class GeoDatabaser(Databaser):
         query = self.session.query(self.table).filter(_filter)
         query.update(data)
 
-        self.session.commit()
-
     def update_record_from_self(self):
         """Update 'country' and 'region' from another record if possible"""
         filter1 = or_(self.table.region == None,
@@ -356,4 +351,4 @@ class GeoDatabaser(Databaser):
 
             self.session.query(self.table).filter(filter3).update(data)
 
-        self.session.commit()
+        self.commit()
