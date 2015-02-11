@@ -16,13 +16,13 @@ from util.configparser import (get_scrape_processes, get_geocoding_processes,
 
 
 #: constants
-__geo__ = 'geo'
-__ads__ = 'ads'
-__exit__ = 'exit'
-__catalogs__ = 'catalogs'
-scrape_processes = get_scrape_processes()
-geocoding_processes = get_geocoding_processes()
-old_items_threshold = get_old_items_threshold()
+GEO = 'geo'
+ADS = 'ads'
+EXIT = 'exit'
+CATALOGS = 'catalogs'
+SCRAPE_PROCESSES = get_scrape_processes()
+GEOCODING_PROCESSES = get_geocoding_processes()
+OLD_ITEMS_THRESHOLD = get_old_items_threshold()
 
 
 class ProducerConsumer(object):
@@ -46,7 +46,7 @@ class ProducerConsumer(object):
         which knows exactly what and how to do.
         Also, `databaser_type` must be set by the all successor classes.
 
-        Stop issuing requests is an event based action.
+        Stop issuing requests and commit forcing are event based actions.
         Processes share data using queues, where 'exit' is a signal to stop.
 
         :argument scraper: scraper instance
@@ -68,6 +68,7 @@ class ProducerConsumer(object):
                        ('responses_q', self.responses_q),
                        ('data_q', self.data_q)]
 
+        self.force_commit_e = multiprocessing.Event()
         self.stop_requesting_e = multiprocessing.Event()
 
         self.processes = processes
@@ -85,7 +86,8 @@ class ProducerConsumer(object):
 
     @abc.abstractmethod
     def store_data(self, queue_item, databaser):
-        """Store data - what checks should be performed and where to save"""
+        """Store data - what checks should be performed and where to save.
+        This method also MUST handle COMMITTING changes."""
         raise NotImplementedError()
 
     def create_databaser(self, databaser_type=None):
@@ -103,10 +105,10 @@ class ProducerConsumer(object):
         if databaser_type is None:
             raise ValueError('Databaser type not set')
 
-        elif databaser_type == __ads__:
+        elif databaser_type == ADS:
             dtbsr = AdsDatabaser(self.scraper.db_file, self.scraper.db_table)
 
-        elif databaser_type == __geo__:
+        elif databaser_type == GEO:
             dtbsr = GeoDatabaser()
 
         else:
@@ -114,6 +116,13 @@ class ProducerConsumer(object):
             raise ValueError(msg)
 
         return dtbsr
+
+    def force_commit(self):
+        """Set the force commit event and wait till it is cleared again"""
+        self.force_commit_e.set()
+
+        while self.force_commit_e.is_set():
+            time.sleep(1)
 
     def commit_checker(self, databaser, queue_item, transaction_size):
         """Commit changes if transaction size is exceeded.
@@ -179,6 +188,7 @@ class ProducerConsumer(object):
 
             self.manage_ip()
 
+            #print self.target_q.qsize()
             try:
                 responses = self.pool.map(requester, targets)
                 self.responses_q.put(responses)
@@ -220,7 +230,7 @@ class ProducerConsumer(object):
             idle_since = None
             queue_item = self.responses_q.get()
 
-            if queue_item == __exit__:
+            if queue_item == EXIT:
                 break
 
             self.collect_data(queue_item)
@@ -232,12 +242,22 @@ class ProducerConsumer(object):
         databaser = self.create_databaser()
 
         while True:
+            if self.force_commit_e.is_set():
+                databaser.commit()
+                self.transaction_items = 0
+
+                # wait till all changes are safely saved to disk
+                while databaser.journal_exists():
+                    time.sleep(1)
+
+                self.force_commit_e.clear()
+
             if self.data_q.qsize() == 0:
                 time.sleep(1)
                 continue
 
             queue_item = self.data_q.get()
-            if queue_item == __exit__:
+            if queue_item == EXIT:
                 break
 
             try:
@@ -248,6 +268,7 @@ class ProducerConsumer(object):
 
         if self.transaction_items > 0:
             databaser.commit()
+            self.transaction_items = 0
 
 
 class AdsFactory(ProducerConsumer):
@@ -278,11 +299,11 @@ class AdsFactory(ProducerConsumer):
 
         """
         super(AdsFactory, self).__init__(scraper=scraper,
-                                         processes=scrape_processes)
+                                         processes=SCRAPE_PROCESSES)
 
         self.scraping = None
         self.old_ads_count = 0
-        self.databaser_type = __ads__
+        self.databaser_type = ADS
 
     def manage_ip(self):
         """Just set new IP address after each bunch of requests"""
@@ -298,9 +319,9 @@ class AdsFactory(ProducerConsumer):
                     continue
 
             try:
-                if self.scraping == __ads__:
+                if self.scraping == ADS:
                     data = self.scraper.get_ad_properties(response)
-                elif self.scraping == __catalogs__:
+                elif self.scraping == CATALOGS:
                     data = self.scraper.get_catalog_ads(response)
 
                 self.data_q.put(data)
@@ -339,7 +360,7 @@ class AdsFactory(ProducerConsumer):
                 else:
                     self.old_ads_count += 1
 
-                    if self.old_ads_count > old_items_threshold:
+                    if self.old_ads_count > OLD_ITEMS_THRESHOLD:
                         logging.warning('Old adds threshold exceeded')
                         self.stop_requesting_e.set()
 
@@ -350,7 +371,7 @@ class AdsFactory(ProducerConsumer):
 
     def get_ads_urls(self):
         """Generate catalogs URLs, store collected ads URLs in the database"""
-        self.scraping = __catalogs__
+        self.scraping = CATALOGS
 
         ads_urls_processor = multiprocessing.Process(target=self.process_data)
         ads_urls_processor.daemon = True
@@ -359,7 +380,7 @@ class AdsFactory(ProducerConsumer):
         ads_urls_consumer.daemon = True
 
         # TODO: start and end should be taken from the parent script
-        catalogs = self.scraper.generate_catalog_urls(start=10, end=0)
+        catalogs = self.scraper.generate_catalog_urls(start=100, end=0)
         for catalog in catalogs:
             self.target_q.put(catalog)
 
@@ -367,17 +388,17 @@ class AdsFactory(ProducerConsumer):
         ads_urls_consumer.start()
         self.produce_data()
 
-        self.responses_q.put(__exit__)
+        self.responses_q.put(EXIT)
         ads_urls_processor.join()
 
-        self.data_q.put(__exit__)
+        self.data_q.put(EXIT)
         ads_urls_consumer.join()
 
         self.empty_queues()
 
     def get_ads_data(self):
         """Parse ads HTML, store collected data in the database"""
-        self.scraping = __ads__
+        self.scraping = ADS
 
         ads_data_processor = multiprocessing.Process(target=self.process_data)
         ads_data_processor.daemon = True
@@ -393,10 +414,10 @@ class AdsFactory(ProducerConsumer):
         ads_data_consumer.start()
         self.produce_data()
 
-        self.responses_q.put(__exit__)
+        self.responses_q.put(EXIT)
         ads_data_processor.join()
 
-        self.data_q.put(__exit__)
+        self.data_q.put(EXIT)
         ads_data_consumer.join()
 
         self.empty_queues()
@@ -455,17 +476,17 @@ class GeocodingFactory(ProducerConsumer):
 
         """
         super(GeocodingFactory, self).__init__(scraper=scraper,
-                                               processes=geocoding_processes)
+                                               processes=GEOCODING_PROCESSES)
 
-        self.scraper = scraper
         self.geocoder = Geocoder()
 
         self.used_ips = []
-        self.databaser_type = __geo__
+        self.databaser_type = GEO
         self.change_ip_e = multiprocessing.Event()
 
     def manage_ip(self):
-        """Set new IP address if current limit is depleted"""
+        """Set new IP address if geocoding requests limit for the current one
+        is depleted"""
         if self.change_ip_e.is_set():
             ensure_new_ip(used_ips=self.used_ips, store_all=True)
             self.change_ip_e.clear()
@@ -531,9 +552,11 @@ class GeocodingFactory(ProducerConsumer):
         """Put addresses from to_geocode list to the `target_q`. Manage IPs -
         store all used IPs as these can not be re-used, get a new one when
         change_ip_e event is set."""
-        ads_databaser = self.create_databaser(__ads__)
+        ensure_new_ip(used_ips=self.used_ips)
+
+        ads_databaser = self.create_databaser(ADS)
         to_geocode = ads_databaser.to_geocode()
-        databaser = self.create_databaser(__geo__)
+        databaser = self.create_databaser(GEO)
 
         # TODO: this is just way too slow ...
         for addr_cmps in to_geocode:
@@ -541,8 +564,6 @@ class GeocodingFactory(ProducerConsumer):
                 continue
 
             self.target_q.put(addr_cmps)
-
-        ensure_new_ip(used_ips=self.used_ips)
 
         geocoding_processor = multiprocessing.Process(target=self.process_data)
         geocoding_processor.daemon = True
@@ -552,8 +573,9 @@ class GeocodingFactory(ProducerConsumer):
         geocoding_consumer.daemon = True
         geocoding_consumer.start()
 
-        # get coordinates for new addresses
+        # get coordinates for new addresses, make sure everything is committed
         self.produce_data(requester=get_geo, wait=True)
+        self.force_commit()
 
         incomplete_records = databaser.get_incomplete_records()
         for incomplete_record in incomplete_records:
@@ -562,16 +584,15 @@ class GeocodingFactory(ProducerConsumer):
         # add missing localization attributes for cached addresses
         self.produce_data(requester=get_rgeo, wait=True)
 
-        self.responses_q.put(__exit__)
+        self.responses_q.put(EXIT)
         geocoding_processor.join()
 
-        self.data_q.put(__exit__)
+        self.data_q.put(EXIT)
         geocoding_consumer.join()
 
         self.empty_queues()
 
-        # TODO: successful only on second run - debug why
         databaser.update_record_from_self()
 
         # TODO: this maybe should not be here (add to docstring if it should)
-        ads_databaser.update_location_data()
+        #ads_databaser.update_location_data()
