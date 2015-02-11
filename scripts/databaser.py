@@ -114,6 +114,16 @@ class Databaser(object):
         query = self.session.query(table).filter(table.ad_id == id_)
         query.delete()
 
+    def journal_exists(self):
+        """Check if the SQLite roll-back journal is present
+
+        :return bool
+
+        """
+        journal_file = self.db_file + '-journal'
+
+        return os.path.exists(journal_file)
+
 
 class AdsDatabaser(Databaser):
     def __init__(self, db_file, db_table):
@@ -167,7 +177,6 @@ class AdsDatabaser(Databaser):
         :returns list
 
         """
-        # TODO: select distinct
         return [row for row in
                 self.session.query(self.table.district,
                                    self.table.city,
@@ -258,7 +267,6 @@ class AdsDatabaser(Databaser):
 
 
 class GeoDatabaser(Databaser):
-    # TODO: prevent duplicates
     def __init__(self):
         super(GeoDatabaser, self).__init__(db_file='geocodingcache.db')
 
@@ -312,7 +320,6 @@ class GeoDatabaser(Databaser):
         """
         _filter = and_(self.table.latitude == data['latitude'],
                        self.table.longitude == data['longitude'])
-
         query = self.session.query(self.table).filter(_filter)
         query.update(data)
 
