@@ -355,9 +355,9 @@ class Geocoder(object):
                     result = location_data
                     break
             else:
-                adderss = iterable_to_string(self.address_components, True)
+                address = iterable_to_string(self.address_components, True)
                 logging.error('Ungeocoded localization: %s\n%s' %
-                              (adderss, self.url))
+                              (address, self.url))
 
                 result = normalize_address(self.address_components)
                 self._set_ungeocoded()
@@ -439,6 +439,10 @@ class Geocoder(object):
 
                 self._clear_from_cache(coordinates, result)
                 result = normalize_address(result)
+
+                address = self._extract_basic_addr_cmps(result)
+                logging.error('Can\'t get missing components for localization:'
+                              ' %s\n%s' % (address, self.url))
 
                 return result
 
