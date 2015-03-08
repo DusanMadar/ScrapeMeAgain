@@ -10,7 +10,7 @@ import argparse
 
 
 def sql2spatial(database, table, latitude, longitude, extension, geometry,
-                synchronous=False):
+                synchronous=False, rename=False):
     """Add a geometry (Point) column in WGS-84 and all Spatialite required stuff
 
     :argument database: path to SQLite database to be spatially enabled
@@ -27,6 +27,8 @@ def sql2spatial(database, table, latitude, longitude, extension, geometry,
     :type geometry: str
     :argument synchronous: flag to use FULL synchronous pragma
     :type synchronous: bool
+    :argument rename: flag to change file extension to 'spatialite'
+    :type rename: bool
 
     """
     if not os.path.exists(database):
@@ -90,7 +92,17 @@ def sql2spatial(database, table, latitude, longitude, extension, geometry,
             print exc
             sys.exit()
 
-        print 'DONE!'
+    if rename:
+        try:
+            file_name, _ = os.path.splitext(database)
+            os.rename(database, file_name + '.spatialite')
+            print 'Database file extension updated'
+        except Exception as exc:
+            print 'Failed to update database file extension'
+            print exc
+            sys.exit()
+
+    print 'DONE!'
 
 
 if __name__ == '__main__':
@@ -129,8 +141,12 @@ if __name__ == '__main__':
                         default=False,
                         help='Flag to use FULL synchronous pragma')
 
+    parser.add_argument('-r', '--rename', action='store_false',
+                        default=True,
+                        help='Flag not to change extension to `spatialite`')
+
     args = parser.parse_args()
     sql2spatial(database=args.database, table=args.table,
                 latitude=args.latitude, longitude=args.longitude,
                 extension=args.extension, geometry=args.geometry,
-                synchronous=args.synchronous)
+                synchronous=args.synchronous, rename=args.rename)
