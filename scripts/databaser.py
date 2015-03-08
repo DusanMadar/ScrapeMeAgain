@@ -189,6 +189,7 @@ class AdsDatabaser(Databaser):
 
     def update_location_data(self):
         """Update ad location data based on geocoded localizations"""
+        transaction_items = 0
         g_dbsr = GeoDatabaser()
 
         # yeah, I know - it is slow [to loop over like this]
@@ -235,6 +236,11 @@ class AdsDatabaser(Databaser):
             query = self.session.query(self.table).filter(_filter)
 
             query.update(location_data)
+
+            transaction_items += 1
+            if transaction_items > 1000:
+                transaction_items = 0
+                self.commit()
 
         self.commit()
 
