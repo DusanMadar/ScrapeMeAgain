@@ -12,7 +12,8 @@ from util.alphanumericker import date_stamp
 
 def setup_logging(logger_name):
     # ensure log directory exists
-    log_dir = os.path.join('..', 'log')
+    parent_dir = os.path.dirname(os.path.dirname(__file__))
+    log_dir = os.path.join(parent_dir, 'log')
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
 
