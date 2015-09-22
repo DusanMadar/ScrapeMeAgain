@@ -1,12 +1,17 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """Shared alphanumeric functions"""
 
 
-from __future__ import unicode_literals
 from time import time
 from datetime import datetime
 from unicodedata import normalize
+
+
+def current_time_stamp():
+    """Format current time stamp"""
+    return datetime.now().strftime('%Y.%m.%d %H:%M:%S.%f')[:-7]
 
 
 def date_stamp():
@@ -91,7 +96,7 @@ def string_to_ascii(string):
         return
 
     if isinstance(string, str):
-        string = unicode(string)
+        string = string.decode('utf-8')
 
     return normalize('NFKD', string).encode('ASCII', 'ignore')
 
@@ -170,11 +175,11 @@ def iterable_to_string(iterable, quoted=False):
 
     """
     if isinstance(iterable, dict):
-        iterable = [str(i) for i in iterable.values()]
+        iterable = [unicode(i) for i in iterable.values()]
     else:
-        iterable = [str(i) for i in iterable]
+        iterable = [unicode(i) for i in iterable]
 
     if quoted:
-        iterable = ['\'%s\'' % i for i in iterable]
+        iterable = ['\'%s\'' % unicode(i) for i in iterable]
 
     return ', '.join(iterable)
