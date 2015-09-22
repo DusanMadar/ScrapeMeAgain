@@ -1,15 +1,15 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """Manage Slovak addresses (district, city, locality) cleanup and comparison"""
 
 
-from __future__ import unicode_literals
 import re
 import logging
 
-from util.configparser import get_ungeocoded_coordinate
-from util.alphanumericker import (string_to_ascii, comparable_string,
-                                  handle_dots, handle_dashes)
+from configparser import get_ungeocoded_coordinate
+from alphanumericker import (string_to_ascii, comparable_string,
+                             handle_dots, handle_dashes)
 
 
 #:
@@ -20,7 +20,7 @@ FORBIDDEN_PARTS = ('obec', 'ulica', 'ul.', 'ul')
 
 #: regex patterns
 digits_pattern = re.compile(r'\d')
-nam_pattern = re.compile(r'[n,N][a,á]m(\.|\s|\Z)')
+nam_pattern = re.compile(ur'n[a,á]m(\.|\s|\Z)', re.IGNORECASE | re.UNICODE)
 leading_zero_pattern = re.compile(r'\b0+[1-9]*$')
 digit_with_str_pattern = re.compile(r'\d+\/?[aA-zZ]\b')
 roman_numeral_pattern = re.compile(r'\b(XC|XL|L?X{0,3})'
@@ -222,6 +222,9 @@ def normalize_address(addr_cmps):
             addr_cmps[addr_cmp] = handle_dots(addr_cmps[addr_cmp])
             addr_cmps[addr_cmp] = handle_dashes(addr_cmps[addr_cmp])
 
+            if isinstance(addr_cmps[addr_cmp], str):
+                addr_cmps[addr_cmp] = addr_cmps[addr_cmp].decode('utf-8')
+
             value = ' '.join(addr_cmps[addr_cmp].split())
             addr_cmps[addr_cmp] = value.strip().title()
 
@@ -231,10 +234,13 @@ def normalize_address(addr_cmps):
             roman = roman_numeral_pattern.search(addr_cmps[addr_cmp])
             if roman is not None:
                 roman = roman.group()
-                if roman != '':
-                    value = roman_numeral_pattern.sub(
-                            roman.upper(), addr_cmps[addr_cmp])
-                    addr_cmps[addr_cmp] = value
+                if roman == '':
+                    continue
+
+                roman = roman.upper()
+                value = roman_numeral_pattern.sub(roman, addr_cmps[addr_cmp])
+
+                addr_cmps[addr_cmp] = value
         except KeyError:
             pass
 
@@ -263,13 +269,15 @@ def comparable_address(addr_cmps):
 
                 address += comparable_string(addr_cmps[addr_cmp])
             except KeyError:
-                pass
+                continue
+
     elif isinstance(addr_cmps, tuple):
         for addr_cmp in addr_cmps:
             if addr_cmp is None:
                 continue
 
             address += comparable_string(addr_cmp)
+
     else:
         msg = ('Unexpected address components type:\nGot {type}, expected '
                'dict or tuple').format(type=type(addr_cmps).__name__)
