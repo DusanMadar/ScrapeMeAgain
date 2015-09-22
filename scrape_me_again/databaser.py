@@ -1,5 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """Shared database operations"""
 
 
@@ -30,7 +31,7 @@ class Databaser(object):
         :type db_table:
 
         """
-        self.db_file = os.path.join(data_dir, db_file)
+        self.db_file = os.path.join(data_dir, db_file + '.sqlite')
         if not os.path.exists(self.db_file):
             with open(self.db_file, 'w'):
                 pass
@@ -72,7 +73,7 @@ class Databaser(object):
         row = table()
         for key, value in data.items():
             if isinstance(value, str):
-                value = unicode(value)
+                value = value.decode('utf-8')
 
             setattr(row, key, value)
 
@@ -274,7 +275,7 @@ class AdsDatabaser(Databaser):
 
 class GeoDatabaser(Databaser):
     def __init__(self):
-        super(GeoDatabaser, self).__init__(db_file='geocodingcache.db')
+        super(GeoDatabaser, self).__init__(db_file='geocodingcache')
 
         self.table = self.create_table(GeocodedTable)
 
