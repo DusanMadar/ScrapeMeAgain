@@ -1,5 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """Multiprocess I/O intensive tasks to maximize performance"""
 
 
@@ -10,6 +11,7 @@ import multiprocessing
 
 from geocoder import Geocoder
 from databaser import AdsDatabaser, GeoDatabaser
+from util.alphanumericker import current_time_stamp
 from util.networker import ensure_new_ip, get, get_geo, get_rgeo
 from util.configparser import (get_scrape_processes, get_geocoding_processes,
                                get_old_items_threshold)
@@ -56,6 +58,7 @@ class ProducerConsumer(object):
 
         """
         self.scraper = scraper
+        self.used_ips = []
 
         self.databaser_type = None
         self.transaction_items = 0
@@ -68,7 +71,8 @@ class ProducerConsumer(object):
                        ('responses_q', self.responses_q),
                        ('data_q', self.data_q)]
 
-        self.force_commit_e = multiprocessing.Event()
+#        self.force_commit_e = multiprocessing.Event()
+        self.change_ip_e = multiprocessing.Event()
         self.stop_requesting_e = multiprocessing.Event()
 
         self.processes = processes
@@ -117,15 +121,17 @@ class ProducerConsumer(object):
 
         return dtbsr
 
-    def force_commit(self):
-        """Set the force commit event and wait till it is cleared again"""
-        self.force_commit_e.set()
-
-        while self.force_commit_e.is_set():
-            time.sleep(1)
+#    def force_commit(self):
+#        """Set the force commit event and wait till it is cleared again, i.e.
+#        till all scraped data are processed"""
+#        self.force_commit_e.set()
+#
+#        while self.force_commit_e.is_set():
+#            time.sleep(1)
 
     def commit_checker(self, databaser, queue_item, transaction_size):
         """Commit changes if transaction size is exceeded.
+
         Large transactions are better for SQLite performance with normal
         synchronization mode (using db-journal), i.e. no need for the
         `pragma synchronous=OFF`, which was used when each change was committed
@@ -188,7 +194,6 @@ class ProducerConsumer(object):
 
             self.manage_ip()
 
-            #print self.target_q.qsize()
             try:
                 responses = self.pool.map(requester, targets)
                 self.responses_q.put(responses)
@@ -207,10 +212,14 @@ class ProducerConsumer(object):
 
         while True:
             if self.responses_q.qsize() == 0:
-                if idle_since is None:
+                time.sleep(1)
+
+                if self.change_ip_e.is_set():
+                    # wait till the new IP is set
+                    pass
+                elif idle_since is None:
                     idle_since = time.time()
                 else:
-                    time.sleep(1)
                     now = time.time()
                     idle_for = now - idle_since
 
@@ -242,15 +251,15 @@ class ProducerConsumer(object):
         databaser = self.create_databaser()
 
         while True:
-            if self.force_commit_e.is_set():
-                databaser.commit()
-                self.transaction_items = 0
-
-                # wait till all changes are safely saved to disk
-                while databaser.journal_exists():
-                    time.sleep(1)
-
-                self.force_commit_e.clear()
+#            if self.force_commit_e.is_set():
+#                databaser.commit()
+#                self.transaction_items = 0
+#
+#                # wait till all changes are safely saved to disk
+#                while databaser.journal_exists():
+#                    time.sleep(1)
+#
+#                self.force_commit_e.clear()
 
             if self.data_q.qsize() == 0:
                 time.sleep(1)
@@ -306,8 +315,19 @@ class AdsFactory(ProducerConsumer):
         self.databaser_type = ADS
 
     def manage_ip(self):
-        """Just set new IP address after each bunch of requests"""
-        ensure_new_ip(used_ips=self.scraper.used_ips)
+        """Set new IP address after each bunch of requests.
+
+        Handle the `change_ip_e` event as changing the IP might take quite
+        a long time, i.e. longer than are thresholds for stop requesting new
+        data.
+
+        The main data processing process will not terminate while the
+        `change_ip_e` event is set.
+
+        """
+        self.change_ip_e.set()
+        ensure_new_ip(used_ips=self.used_ips)
+        self.change_ip_e.clear()
 
     def collect_data(self, queue_item):
         """Collect and process ads URLs (catalogs) or ads data (ads).
@@ -337,7 +357,7 @@ class AdsFactory(ProducerConsumer):
         if isinstance(queue_item, list):
             databaser.insert_multiple(queue_item, databaser.urls)
 
-            self.commit_checker(databaser, queue_item, 5000)
+            self.commit_checker(databaser, queue_item, 10000)
 
         # saving adds
         else:
@@ -379,10 +399,13 @@ class AdsFactory(ProducerConsumer):
         ads_urls_consumer = multiprocessing.Process(target=self.consume_data)
         ads_urls_consumer.daemon = True
 
-        # TODO: start and end should be taken from the parent script
-        catalogs = self.scraper.generate_catalog_urls(start=100, end=0)
-        for catalog in catalogs:
+        for catalog in self.scraper.generate_catalog_urls():
             self.target_q.put(catalog)
+
+        #:
+        msg = 'Downloading ads URLs ...'
+        logging.debug(msg)
+        print '{0} {1}'.format(current_time_stamp(), msg)
 
         ads_urls_processor.start()
         ads_urls_consumer.start()
@@ -409,6 +432,11 @@ class AdsFactory(ProducerConsumer):
         databaser = self.create_databaser()
         for add_url in databaser.urls_get_all():
             self.target_q.put(add_url[0])
+
+        #:
+        msg = 'Downloading ads data ...'
+        logging.info(msg)
+        print '{0} {1}'.format(current_time_stamp(), msg)
 
         ads_data_processor.start()
         ads_data_consumer.start()
@@ -482,7 +510,6 @@ class GeocodingFactory(ProducerConsumer):
 
         self.used_ips = []
         self.databaser_type = GEO
-        self.change_ip_e = multiprocessing.Event()
 
     def manage_ip(self):
         """Set new IP address if geocoding requests limit for the current one
@@ -555,15 +582,20 @@ class GeocodingFactory(ProducerConsumer):
         ensure_new_ip(used_ips=self.used_ips)
 
         ads_databaser = self.create_databaser(ADS)
-        to_geocode = ads_databaser.to_geocode()
-        databaser = self.create_databaser(GEO)
+        geo_databaser = self.create_databaser(GEO)
 
-        # TODO: this is just way too slow ...
-        for addr_cmps in to_geocode:
-            if databaser.is_stored(addr_cmps):
+        # TODO: this is just way too slow ... but parallelize isn't and option
+        # related to sqlite
+        msg = 'Loading locations ...'
+        logging.info(msg)
+        print '{0} {1}'.format(current_time_stamp(), msg)
+
+        to_geocode = ads_databaser.to_geocode()
+        for addr_cmp in to_geocode:
+            if geo_databaser.is_stored(addr_cmp):
                 continue
 
-            self.target_q.put(addr_cmps)
+            self.target_q.put(addr_cmp)
 
         geocoding_processor = multiprocessing.Process(target=self.process_data)
         geocoding_processor.daemon = True
@@ -573,13 +605,22 @@ class GeocodingFactory(ProducerConsumer):
         geocoding_consumer.daemon = True
         geocoding_consumer.start()
 
+        #:
+        msg = 'Geocoding locations ...'
+        logging.info(msg)
+        print '{0} {1}'.format(current_time_stamp(), msg)
+
         # get coordinates for new addresses, make sure everything is committed
         self.produce_data(requester=get_geo, wait=True)
-        self.force_commit()
+        geo_databaser.commit()
 
-        incomplete_records = databaser.get_incomplete_records()
-        for incomplete_record in incomplete_records:
+        for incomplete_record in geo_databaser.get_incomplete_records():
             self.target_q.put(incomplete_record)
+
+        #:
+        msg = 'Reverse geocoding incomplete locations ...'
+        logging.info(msg)
+        print '{0} {1}'.format(current_time_stamp(), msg)
 
         # add missing localization attributes for cached addresses
         self.produce_data(requester=get_rgeo, wait=True)
@@ -592,7 +633,10 @@ class GeocodingFactory(ProducerConsumer):
 
         self.empty_queues()
 
-        databaser.update_record_from_self()
+        geo_databaser.update_record_from_self()
 
         # TODO: this maybe should not be here (add to docstring if it should)
-        #ads_databaser.update_location_data()
+        msg = 'Merging locations to ads data ...'
+        logging.info(msg)
+        print '{0} {1}'.format(current_time_stamp(), msg)
+        ads_databaser.update_location_data()

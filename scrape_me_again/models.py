@@ -1,10 +1,11 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """SQLAlchemy database tables definition"""
 
 
-from sqlalchemy import Column, Float, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Float, Integer, String
 
 
 Base = declarative_base()
