@@ -1,5 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """Shared networking functions"""
 
 
@@ -9,22 +10,24 @@ import requests
 from stem import Signal
 from stem.control import Controller
 from time import sleep
-from random import randint
 
-from util.alphanumericker import string_to_ascii, comparable_string
-from util.configparser import (get_tor_port, get_tor_password,
-                               get_geocoding_language)
+from alphanumericker import string_to_ascii, comparable_string
+from configparser import (get_tor_port, get_tor_password,
+                          get_geocoding_language)
+
+
+IP_GETTER_URL = 'http://icanhazip.com/'
+GEOCODING_URL = 'http://maps.googleapis.com/maps/api/geocode/json'
 
 
 #:
 tor_port = get_tor_port()
 tor_password = get_tor_password()
 geocoding_language = get_geocoding_language()
+REAL_IP = requests.get(IP_GETTER_URL).content
 
-geocoding_url = 'http://maps.googleapis.com/maps/api/geocode/json'
 
-
-def get(url, timeout=15, params=None):
+def get(url, timeout=15, params=None, log=True):
     """GET data from specified URL
 
     :argument url: web site address
@@ -33,6 +36,8 @@ def get(url, timeout=15, params=None):
     :type timeout: int
     :argument params: URL parameters
     :type params: dict
+    :argument log: flag to log activity
+    :type log: bool
 
     :returns `requests.Response` instance
 
@@ -47,16 +52,24 @@ def get(url, timeout=15, params=None):
                                 timeout=timeout,
                                 proxies=http_proxy,
                                 headers={'User-Agent': user_agent})
-    except requests.exceptions.Timeout:
+    except (requests.exceptions.Timeout,
+            # TODO: why the heck is this happening?
+            requests.exceptions.ConnectionError) as exc:
         response = requests.Response()
         response.url = url
-        response.status_code = 408
 
-    log_level = logging.debug
-    if not response.ok:
-        log_level = logging.error
+        if isinstance(exc, requests.exceptions.Timeout):
+            response.status_code = 408
+        else:
+            # the status code is misleading - it is used for ConnectionError
+            response.status_code = 409
 
-    log_level('%s - %s' % (response.status_code, response.url))
+    if log:
+        log_level = logging.debug
+        if not response.ok:
+            log_level = logging.error
+
+        log_level('%s - %s' % (response.status_code, response.url))
 
     return response
 
@@ -94,7 +107,7 @@ def get_geo(address):
         params[param] = params[param].replace(' ', '+')
         params[param] = string_to_ascii(params[param])
 
-    result = get(url=geocoding_url, params=params)
+    result = get(url=GEOCODING_URL, params=params)
     return result, address
 
 
@@ -110,7 +123,7 @@ def get_rgeo(coordinates):
     params = {'language': geocoding_language,
               'latlng': ','.join([str(crdnt) for crdnt in coordinates])}
 
-    result = get(url=geocoding_url, params=params)
+    result = get(url=GEOCODING_URL, params=params)
     return result, coordinates
 
 
@@ -120,8 +133,7 @@ def get_current_ip():
     :returns str or None
 
     """
-    url = 'http://icanhazip.com/'
-    current_ip = get(url=url, timeout=5)
+    current_ip = get(url=IP_GETTER_URL, timeout=5, log=False)
 
     if current_ip.ok:
         return current_ip.text.strip()
@@ -144,25 +156,31 @@ def ip_is_usable(used_ips, current_ip, store_all=False):
     :type used_ips: list
     :argument current_ip: current IP address
     :type current_ip: str
-    :argument store_all: flag to store all used IPs, not just 10
+    :argument store_all: flag to store all used IPs
     :type store_all: bool
 
     :returns bool
 
     """
-    usable = False
-    if current_ip not in used_ips:
-        if store_all:
-            used_ips.append(current_ip)
-        elif len(used_ips) == 10:
-            used_ips.append(current_ip)
+    # never use real IP
+    if current_ip == REAL_IP:
+        return False
+
+    # do dot allow IP reuse
+    if current_ip in used_ips:
+        return False
+
+    # register IP
+    used_ips.append(current_ip)
+
+    if not store_all:
+        # TODO: used IP number should be taken from configuration file
+        if len(used_ips) == 10:
             del used_ips[0]
-        else:
-            used_ips.append(current_ip)
 
-        usable = True
+    logging.info('New IP: {ip}'.format(ip=current_ip))
 
-    return usable
+    return True
 
 
 def ensure_new_ip(used_ips, store_all=False):
