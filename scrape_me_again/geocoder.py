@@ -1,5 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """Change addresses to coordinates and vice versa"""
 
 
