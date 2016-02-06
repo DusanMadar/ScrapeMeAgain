@@ -39,5 +39,5 @@ def setup_logging(logger_name):
     requests_log = logging.getLogger('requests')
     requests_log.setLevel(logging.WARNING)
 
-    requests_log = logging.getLogger('stem')
-    requests_log.setLevel(logging.WARNING)
+    stem_log = logging.getLogger('stem')
+    stem_log.setLevel(logging.WARNING)
