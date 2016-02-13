@@ -13,17 +13,19 @@ from time import sleep
 
 from alphanumericker import string_to_ascii, comparable_string
 from configparser import (get_tor_port, get_tor_password,
-                          get_geocoding_language)
+                          get_geocoding_language, get_used_ips)
 
 
+# Useful URLs
 IP_GETTER_URL = 'http://icanhazip.com/'
 GEOCODING_URL = 'http://maps.googleapis.com/maps/api/geocode/json'
 
 
-#:
-tor_port = get_tor_port()
-tor_password = get_tor_password()
-geocoding_language = get_geocoding_language()
+# Configuration
+TOR_PORT = get_tor_port()
+TOR_PASSWORD = get_tor_password()
+USED_IPS_BUFFER_SIZE = get_used_ips()
+GEOCODING_LANGUAGE = get_geocoding_language()
 REAL_IP = requests.get(IP_GETTER_URL).content
 
 
@@ -51,25 +53,25 @@ def get(url, timeout=15, params=None, log=True):
                                 params=params,
                                 timeout=timeout,
                                 proxies=http_proxy,
-                                headers={'User-Agent': user_agent})
-    except (requests.exceptions.Timeout,
-            # TODO: why the heck is this happening?
-            requests.exceptions.ConnectionError) as exc:
+                                headers={'User-Agent': user_agent},
+                                verify=False)
+    except Exception as exc:
+        # don't fail on any exception, setup a fake response instead
         response = requests.Response()
         response.url = url
 
         if isinstance(exc, requests.exceptions.Timeout):
             response.status_code = 408
         else:
-            # the status code is misleading - it is used for ConnectionError
-            response.status_code = 409
+            response.status_code = 503
 
     if log:
         log_level = logging.debug
         if not response.ok:
             log_level = logging.error
 
-        log_level('%s - %s' % (response.status_code, response.url))
+        log_level('{status} - {url}'.format(status=response.status_code,
+                                            url=response.url))
 
     return response
 
@@ -83,7 +85,7 @@ def get_geo(address):
     :returns tuple
 
     """
-    params = {'language': geocoding_language}
+    params = {'language': GEOCODING_LANGUAGE}
 
     district, city, locality = address
     if locality is None:
@@ -120,7 +122,7 @@ def get_rgeo(coordinates):
     :returns tuple
 
     """
-    params = {'language': geocoding_language,
+    params = {'language': GEOCODING_LANGUAGE,
               'latlng': ','.join([str(crdnt) for crdnt in coordinates])}
 
     result = get(url=GEOCODING_URL, params=params)
@@ -143,8 +145,8 @@ def get_current_ip():
 
 def set_new_ip():
     """Change IP using TOR"""
-    with Controller.from_port(port=tor_port) as controller:
-        controller.authenticate(password=tor_password)
+    with Controller.from_port(port=TOR_PORT) as controller:
+        controller.authenticate(password=TOR_PASSWORD)
         controller.signal(Signal.NEWNYM)
     sleep(1)
 
@@ -174,8 +176,7 @@ def ip_is_usable(used_ips, current_ip, store_all=False):
     used_ips.append(current_ip)
 
     if not store_all:
-        # TODO: used IP number should be taken from configuration file
-        if len(used_ips) == 10:
+        if len(used_ips) == USED_IPS_BUFFER_SIZE:
             del used_ips[0]
 
     logging.info('New IP: {ip}'.format(ip=current_ip))
@@ -190,9 +191,7 @@ def ensure_new_ip(used_ips, store_all=False):
     :type used_ips: list
 
     """
-    ok_ip = False
-
-    while not ok_ip:
+    while True:
         current_ip = get_current_ip()
         if current_ip is None:
             set_new_ip()
@@ -203,4 +202,4 @@ def ensure_new_ip(used_ips, store_all=False):
             set_new_ip()
             continue
 
-        ok_ip = True
+        break
