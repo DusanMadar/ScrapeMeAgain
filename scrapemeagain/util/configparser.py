@@ -245,3 +245,19 @@ def get_geocoding_processes():
     except ValueError:
         print 'Geocoding processes count is either missing or is not an integer'  # NOQA
         exit()
+
+
+def get_used_ips():
+    """Get number of used IPS to remember
+
+    :returns int
+
+    """
+    used_ips_option = 'used_ips'
+    has_option(MULTIPROCESSING_SECTION, used_ips_option)
+
+    try:
+        return parser.getint(MULTIPROCESSING_SECTION, used_ips_option)
+    except ValueError:
+        print 'Used IPs buffer isze is either missing or is not an integer'
+        exit()
