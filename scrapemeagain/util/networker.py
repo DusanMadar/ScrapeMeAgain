@@ -45,7 +45,10 @@ def get(url, timeout=15, params=None, log=True):
 
     """
     url = url.strip()
-    http_proxy = {'http': '127.0.0.1:8118'}
+
+    local_proxy = '127.0.0.1:8118'
+    http_proxy = {'http': local_proxy,
+                  'https': local_proxy}
     user_agent = 'scrape-me-again'
 
     try:
