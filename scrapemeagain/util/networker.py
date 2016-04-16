@@ -7,6 +7,7 @@
 import logging
 import requests
 
+import ipaddr
 from stem import Signal
 from stem.control import Controller
 from time import sleep
@@ -167,6 +168,12 @@ def ip_is_usable(used_ips, current_ip, store_all=False):
     :returns bool
 
     """
+    # consider only IP addresses
+    try:
+        ipaddr.IPAddress(current_ip)
+    except ValueError:
+        return False
+
     # never use real IP
     if current_ip == REAL_IP:
         return False
