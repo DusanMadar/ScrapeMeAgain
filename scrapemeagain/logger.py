@@ -7,6 +7,8 @@
 import os
 import logging
 
+import requests
+
 from configparser import get_log_level
 from alphanumericker import date_stamp
 
@@ -39,6 +41,7 @@ def setup_logging(logger_name):
     # silence `requests` and `stem` modules logging
     requests_log = logging.getLogger('requests')
     requests_log.setLevel(logging.WARNING)
+    requests.packages.urllib3.disable_warnings()
 
     stem_log = logging.getLogger('stem')
     stem_log.setLevel(logging.WARNING)
