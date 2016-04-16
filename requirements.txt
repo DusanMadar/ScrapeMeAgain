@@ -1,5 +1,5 @@
-SQLAlchemy==1.0.4
-beautifulsoup4==4.3.2
-lxml==3.4.4
-requests==2.7.0
-stem==1.4.0-dev
+beautifulsoup4==4.4.1
+ipaddr==2.1.11
+requests==2.9.1
+SQLAlchemy==1.0.12
+stem==1.4.0
