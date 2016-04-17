@@ -46,8 +46,11 @@ try:
     for operating_system in user_agents_data.values():
         for user_agent in operating_system.values():
             USER_AGENTS.append(user_agent)
-except Exception:
+except:
     USER_AGENTS = 'ScrapeMeAgain'
+    logging.warning('Loading/reading user agents from JSON failed. '
+                    'Using default user agent: "{ua}"'
+                    .format(ua=USER_AGENTS))
 
 
 def get(url, timeout=15, params=None, log=True):
