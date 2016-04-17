@@ -6,10 +6,10 @@
 
 import os
 import json
+import ipaddr
 import logging
 import requests
 
-import ipaddr
 from stem import Signal
 from stem.control import Controller
 from time import sleep
