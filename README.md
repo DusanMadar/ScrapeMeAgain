@@ -6,7 +6,7 @@ There is a **geocoding** module for transforming location data to coordinates.
 Also, a helper script for **spatially enabling a SQLite database** is present. This script actually converts the SQLite database to a Spatialite database by adding a 2D geometry (Point) column in WGS-84 and all other Spatialite required stuff.
 
 ## System requirements
-PySyncDroid leverages `Tor` and `Privoxy`.
+ScrapeMeAgain leverages `Tor` and `Privoxy`.
 
 [Tor](https://www.torproject.org/) in combination with [Privoxy](http://www.privoxy.org/) are used for anonymity (i.e. regular IP address changes). Follow this guide for detailed information about installation and configuration: [Crawling anonymously with Tor in Python](http://sacharya.com/crawling-anonymously-with-tor-in-python/).
 
