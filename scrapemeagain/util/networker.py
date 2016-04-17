@@ -4,6 +4,8 @@
 """Shared networking functions"""
 
 
+import os
+import json
 import logging
 import requests
 
@@ -11,6 +13,7 @@ import ipaddr
 from stem import Signal
 from stem.control import Controller
 from time import sleep
+from random import choice
 
 from alphanumericker import string_to_ascii, comparable_string
 from configparser import (get_tor_port, get_tor_password,
@@ -28,6 +31,23 @@ TOR_PASSWORD = get_tor_password()
 USED_IPS_BUFFER_SIZE = get_used_ips()
 GEOCODING_LANGUAGE = get_geocoding_language()
 REAL_IP = requests.get(IP_GETTER_URL).content
+
+# User agents
+try:
+    USER_AGENTS = []
+
+    # NOTE: `user_agents.json` must be colocated with this file
+    user_agents_json = os.path.join(os.path.dirname(__file__),
+                                    'user_agents.json')
+
+    with open(user_agents_json) as file_object:
+        user_agents_data = json.load(file_object)
+
+    for operating_system in user_agents_data.values():
+        for user_agent in operating_system.values():
+            USER_AGENTS.append(user_agent)
+except Exception:
+    USER_AGENTS = 'ScrapeMeAgain'
 
 
 def get(url, timeout=15, params=None, log=True):
@@ -50,7 +70,11 @@ def get(url, timeout=15, params=None, log=True):
     local_proxy = '127.0.0.1:8118'
     http_proxy = {'http': local_proxy,
                   'https': local_proxy}
-    user_agent = 'scrape-me-again'
+
+    if isinstance(USER_AGENTS, list):
+        user_agent = choice(USER_AGENTS)
+    else:
+        user_agent = USER_AGENTS
 
     try:
         response = requests.get(url=url,
