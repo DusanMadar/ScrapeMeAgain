@@ -9,8 +9,8 @@ from datetime import datetime
 from unicodedata import normalize
 
 
-def current_time_stamp():
-    """Format current time stamp"""
+def current_date_time_stamp():
+    """Format current date time stamp"""
     return datetime.now().strftime('%Y.%m.%d %H:%M:%S.%f')[:-7]
 
 
