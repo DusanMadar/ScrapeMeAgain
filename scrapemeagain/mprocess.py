@@ -11,7 +11,7 @@ import multiprocessing
 
 from geocoder import Geocoder
 from databaser import AdsDatabaser, GeoDatabaser
-from util.alphanumericker import current_time_stamp
+from util.alphanumericker import current_date_time_stamp
 from util.networker import ensure_new_ip, get, get_geo, get_rgeo
 from util.configparser import (get_scrape_processes, get_geocoding_processes,
                                get_old_items_threshold)
@@ -25,6 +25,17 @@ CATALOGS = 'catalogs'
 SCRAPE_PROCESSES = get_scrape_processes()
 GEOCODING_PROCESSES = get_geocoding_processes()
 OLD_ITEMS_THRESHOLD = get_old_items_threshold()
+
+
+def inform(message):
+    """Both log and print an info message
+
+    :argument scraper: scraper instance
+    :type scraper: `:class:Scraper`
+
+    """
+    logging.info(message)
+    print '{0} {1}'.format(current_date_time_stamp(), message)
 
 
 class ProducerConsumer(object):
@@ -403,9 +414,7 @@ class AdsFactory(ProducerConsumer):
             self.target_q.put(catalog)
 
         #:
-        msg = 'Downloading ads URLs ...'
-        logging.debug(msg)
-        print '{0} {1}'.format(current_time_stamp(), msg)
+        inform('Downloading ads URLs ...')
 
         ads_urls_processor.start()
         ads_urls_consumer.start()
@@ -434,9 +443,7 @@ class AdsFactory(ProducerConsumer):
             self.target_q.put(add_url[0])
 
         #:
-        msg = 'Downloading ads data ...'
-        logging.info(msg)
-        print '{0} {1}'.format(current_time_stamp(), msg)
+        inform('Downloading ads data ...')
 
         ads_data_processor.start()
         ads_data_consumer.start()
@@ -584,12 +591,11 @@ class GeocodingFactory(ProducerConsumer):
         ads_databaser = self.create_databaser(ADS)
         geo_databaser = self.create_databaser(GEO)
 
+        #:
+        inform('Loading locations ...')
+
         # TODO: this is just way too slow ... but parallelize isn't and option
         # related to sqlite
-        msg = 'Loading locations ...'
-        logging.info(msg)
-        print '{0} {1}'.format(current_time_stamp(), msg)
-
         to_geocode = ads_databaser.to_geocode()
         for addr_cmp in to_geocode:
             if geo_databaser.is_stored(addr_cmp):
@@ -606,9 +612,7 @@ class GeocodingFactory(ProducerConsumer):
         geocoding_consumer.start()
 
         #:
-        msg = 'Geocoding locations ...'
-        logging.info(msg)
-        print '{0} {1}'.format(current_time_stamp(), msg)
+        inform('Geocoding locations ...')
 
         # get coordinates for new addresses, make sure everything is committed
         self.produce_data(requester=get_geo, wait=True)
@@ -618,9 +622,7 @@ class GeocodingFactory(ProducerConsumer):
             self.target_q.put(incomplete_record)
 
         #:
-        msg = 'Reverse geocoding incomplete locations ...'
-        logging.info(msg)
-        print '{0} {1}'.format(current_time_stamp(), msg)
+        inform('Reverse geocoding incomplete locations ...')
 
         # add missing localization attributes for cached addresses
         self.produce_data(requester=get_rgeo, wait=True)
@@ -635,8 +637,9 @@ class GeocodingFactory(ProducerConsumer):
 
         geo_databaser.update_record_from_self()
 
+        #:
+        inform('Merging locations to ads data ...')
         # TODO: this maybe should not be here (add to docstring if it should)
-        msg = 'Merging locations to ads data ...'
-        logging.info(msg)
-        print '{0} {1}'.format(current_time_stamp(), msg)
         ads_databaser.update_location_data()
+        #:
+        inform('Done')
