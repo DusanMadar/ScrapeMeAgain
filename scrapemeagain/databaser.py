@@ -175,18 +175,17 @@ class AdsDatabaser(Databaser):
     def to_geocode(self):
         """Select records for geocoding (i.e. those without coordinates)
 
-        :returns list
+        :returns Query object
 
         """
-        return [row for row in
-                self.session.query(self.table.district,
+        return (self.session.query(self.table.district,
                                    self.table.city,
                                    self.table.locality)
                             .filter(self.table.latitude == None,
-                                    self.table.city != None)  # NOQA
+                                    self.table.city != None)
                             .group_by(self.table.district,
                                       self.table.city,
-                                      self.table.locality)]
+                                      self.table.locality))  # NOQA
 
     def update_location_data(self):
         """Update ad location data based on geocoded localizations"""
@@ -255,7 +254,7 @@ class AdsDatabaser(Databaser):
                                   'HAVING count(*) > 1)'
                     .format(id=self.urls.ID.key,
                             url=self.urls.url.key,
-                            table=self.urls.__tablename__))
+                            table=self.urls.__tablename__))  # NOQA
 
         self.engine.execute(raw_sql)
 
@@ -292,7 +291,7 @@ class GeoDatabaser(Databaser):
         cmprbl_addr = comparable_address(addr_cmps)
 
         _filter = self.table.valid_for.like('%' + cmprbl_addr + '%')
-        query = self.session.query(self.table).filter(_filter).all()
+        query = self.session.query(self.table).filter(_filter)
 
         if query:
             for possible_addr in query:
