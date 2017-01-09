@@ -260,6 +260,7 @@ class ProducerConsumer(object):
         implementation of the `store_data` method knows exactly what to do and
         where the data should be stored eventually."""
         databaser = self.create_databaser()
+        geo_databaser = self.create_databaser(GEO)
 
         while True:
 #            if self.force_commit_e.is_set():
@@ -281,7 +282,11 @@ class ProducerConsumer(object):
                 break
 
             try:
-                self.store_data(queue_item, databaser)
+                # not all store_data() implementations expect 4 arrguments
+                try:
+                    self.store_data(queue_item, databaser, geo_databaser)
+                except TypeError:
+                    self.store_data(queue_item, databaser)
             except Exception:
                 logging.exception('Failed consuming data')
                 continue
@@ -362,7 +367,28 @@ class AdsFactory(ProducerConsumer):
                 logging.exception(msg)
                 continue
 
-    def store_data(self, queue_item, databaser):
+    def _add_location(self, geo_databaser, queue_item):
+        if geo_databaser:
+            addr_cmps = (queue_item.get('district', None),
+                         queue_item.get('city', None),
+                         queue_item.get('locality', None))
+
+            location = geo_databaser.is_stored(addr_cmps, return_location=True)
+            if location is not None:
+                location_data = {
+                    'country': location.country,
+                    'region': location.region,
+                    'district': location.district,
+                    'city': location.city,
+                    'locality': location.locality,
+                    'latitude': location.latitude,
+                    'longitude': location.longitude,
+                    'location_id': location.ID
+                }
+
+                queue_item.update(location_data)
+
+    def store_data(self, queue_item, databaser, geo_databaser=None):
         """Store adds URLs and add data"""
         # saving URLs
         if isinstance(queue_item, list):
@@ -379,6 +405,9 @@ class AdsFactory(ProducerConsumer):
 
             # new ad
             elif not databaser.is_stored(queue_item['ad_id']):
+                # get the ad location from Geocodingcahe
+                self._add_location(geo_databaser, queue_item)
+
                 databaser.insert(queue_item)
 
             else:
