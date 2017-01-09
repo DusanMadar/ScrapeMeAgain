@@ -125,6 +125,24 @@ class Databaser(object):
 
         return os.path.exists(journal_file)
 
+    def create_index(self, column_name):
+        """Create index for given column
+
+        :argument column_name: column name
+        :type column_name: str
+
+        """
+        index_name = 'idx_{t}_{c}'.format(t=self.table.__tablename__,
+                                          c=column_name)
+
+        # make sure the index is removed before creating new
+        sql = 'DROP INDEX IF EXISTS {i}'.format(i=index_name)
+        self.engine.execute(sql)
+
+        sql = ('CREATE INDEX {i} ON {t} ({c})'
+               .format(i=index_name, t=self.table.__tablename__, c=column_name))
+        self.engine.execute(sql)
+
 
 class AdsDatabaser(Databaser):
     def __init__(self, db_file, db_table):

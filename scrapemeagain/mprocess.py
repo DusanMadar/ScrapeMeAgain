@@ -594,10 +594,11 @@ class GeocodingFactory(ProducerConsumer):
         #:
         inform('Loading locations ...')
 
-        # TODO: this is just way too slow ... but parallelize isn't and option
-        # related to sqlite
-        to_geocode = ads_databaser.to_geocode()
-        for addr_cmp in to_geocode:
+        # index on 'valid_for' will (maybe) sped-up the .is_stored() check
+        geo_databaser.create_index('valid_for')
+        # TODO: this is just way too slow ... but multiprocessing isn't an
+        # option with sqlite
+        for addr_cmp in ads_databaser.to_geocode():
             if geo_databaser.is_stored(addr_cmp):
                 continue
 
