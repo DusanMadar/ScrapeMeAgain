@@ -296,16 +296,20 @@ class GeoDatabaser(Databaser):
 
         self.table = self.create_table(GeocodedTable)
 
-    def is_stored(self, addr_cmps):
+    def is_stored(self, addr_cmps, return_location=False):
         """Check if address is already in the database
 
         :argument addr_cmps: address components
         :type addr_cmps: tuple
+        :argument return_location: flag to return location data
+        :type return_location: bool
 
-        :returns bool
+        :returns bool or (Query or None)
 
         """
+        location = None
         is_stored = False
+
         cmprbl_addr = comparable_address(addr_cmps)
 
         _filter = self.table.valid_for.like('%' + cmprbl_addr + '%')
@@ -314,10 +318,14 @@ class GeoDatabaser(Databaser):
         if query:
             for possible_addr in query:
                 if cmprbl_addr in possible_addr.valid_for.split('|'):
+                    location = possible_addr
                     is_stored = True
                     break
 
-        return is_stored
+        if return_location:
+            return location
+        else:
+            return is_stored
 
     def get_incomplete_records(self):
         """Get a list of coordinates for incomplete records, i.e. for records
