@@ -115,16 +115,6 @@ class Databaser(object):
         query = self.session.query(table).filter(table.ad_id == id_)
         query.delete()
 
-    def journal_exists(self):
-        """Check if the SQLite roll-back journal is present
-
-        :return bool
-
-        """
-        journal_file = self.db_file + '-journal'
-
-        return os.path.exists(journal_file)
-
     def create_index(self, column_name):
         """Create index for given column
 
@@ -246,7 +236,8 @@ class AdsDatabaser(Databaser):
                              'city': matched_address.city,
                              'locality': matched_address.locality,
                              'latitude': matched_address.latitude,
-                             'longitude': matched_address.longitude}
+                             'longitude': matched_address.longitude,
+                             'location_id': matched_address.ID}
 
             _filter = and_(self.table.district == addr_cmps[0],
                            self.table.city == addr_cmps[1],

@@ -82,7 +82,6 @@ class ProducerConsumer(object):
                        ('responses_q', self.responses_q),
                        ('data_q', self.data_q)]
 
-#        self.force_commit_e = multiprocessing.Event()
         self.change_ip_e = multiprocessing.Event()
         self.stop_requesting_e = multiprocessing.Event()
 
@@ -131,14 +130,6 @@ class ProducerConsumer(object):
             raise ValueError(msg)
 
         return dtbsr
-
-#    def force_commit(self):
-#        """Set the force commit event and wait till it is cleared again, i.e.
-#        till all scraped data are processed"""
-#        self.force_commit_e.set()
-#
-#        while self.force_commit_e.is_set():
-#            time.sleep(1)
 
     def commit_checker(self, databaser, queue_item, transaction_size):
         """Commit changes if transaction size is exceeded.
@@ -263,16 +254,6 @@ class ProducerConsumer(object):
         geo_databaser = self.create_databaser(GEO)
 
         while True:
-#            if self.force_commit_e.is_set():
-#                databaser.commit()
-#                self.transaction_items = 0
-#
-#                # wait till all changes are safely saved to disk
-#                while databaser.journal_exists():
-#                    time.sleep(1)
-#
-#                self.force_commit_e.clear()
-
             if self.data_q.qsize() == 0:
                 time.sleep(1)
                 continue
@@ -282,7 +263,7 @@ class ProducerConsumer(object):
                 break
 
             try:
-                # not all store_data() implementations expect 4 arrguments
+                # not all store_data() implementations expect 4 arguments
                 try:
                     self.store_data(queue_item, databaser, geo_databaser)
                 except TypeError:
