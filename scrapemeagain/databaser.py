@@ -206,15 +206,15 @@ class AdsDatabaser(Databaser):
             cmprbl_addr = comparable_address(addr_cmps)
 
             _filter = g_dbsr.table.valid_for.like('%' + cmprbl_addr + '%')
-            data = g_dbsr.session.query(g_dbsr.table.country,
+            data = g_dbsr.session.query(g_dbsr.table.ID,
+                                        g_dbsr.table.country,
                                         g_dbsr.table.region,
                                         g_dbsr.table.district,
                                         g_dbsr.table.city,
                                         g_dbsr.table.locality,
                                         g_dbsr.table.latitude,
                                         g_dbsr.table.longitude,
-                                        g_dbsr.table.valid_for
-                                        ).filter(_filter)
+                                        g_dbsr.table.valid_for).filter(_filter)
 
             addresses_count = data.count()
             if addresses_count == 1:
