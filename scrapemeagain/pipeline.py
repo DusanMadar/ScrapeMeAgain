@@ -74,7 +74,7 @@ class Pipeline(object):
             self.response_queue.put(response)
 
     def _actually_get_html(self, urls):
-        """Request provided URLs."""
+        """Request provided URLs running multiple processes."""
         try:
             self.requesting_in_progress.set()
             for response in self.pool.map(get, urls):
@@ -85,6 +85,7 @@ class Pipeline(object):
             self.requesting_in_progress.clear()
 
     def get_html(self):
+        """Get HTML for URLs from 'url_queue'."""
         run = True
 
         while run:
@@ -105,10 +106,11 @@ class Pipeline(object):
                 self.change_ip()
 
     def _actually_collect_data(self, response):
+        """Scrape HTML provided by a given response."""
         try:
             self.scraping_in_progress.set()
             if self.scraper.list_url_template in response.url:
-                data = self.scraper.get_list_items_urls(response)
+                data = self.scraper.get_item_urls(response)
             else:
                 data = self.scraper.get_item_properties(response)
 
@@ -121,6 +123,7 @@ class Pipeline(object):
             self.scraping_in_progress.clear()
 
     def collect_data(self):
+        """Get data for responses from 'response_queue'."""
         while True:
             response = self.response_queue.get()
 

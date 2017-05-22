@@ -22,10 +22,10 @@ class BaseScraper(object):
         """SQLite file name."""
         raise NotImplementedError()
 
-    # @abc.abstractproperty
-    # def db_table(self):
-    #     """SQLAlchemy table reference."""
-    #     raise NotImplementedError()
+    @abc.abstractproperty
+    def db_table(self):
+        """SQLAlchemy table reference."""
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def generate_list_urls(self):
@@ -44,7 +44,7 @@ class BaseScraper(object):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_list_items_urls(self, response):
+    def get_item_urls(self, response):
         """Get item URLs from a given list page.
 
         :argument response: list page

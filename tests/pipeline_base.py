@@ -41,3 +41,7 @@ class TestPipelineBase(TestCase):
         # Ensure each pipeline's Event is an unique Mock.
         self.pipeline.requesting_in_progress = Mock()
         self.pipeline.scraping_in_progress = Mock()
+
+        # Mock scraping methods - 'get_item_urls', 'get_item_properties'.
+        self.pipeline.scraper.get_item_urls = Mock()
+        self.pipeline.scraper.get_item_properties = Mock()

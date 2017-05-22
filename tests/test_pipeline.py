@@ -149,6 +149,81 @@ class TestPipeline(TestPipelineBase):
         mock_change_ip.assert_called_once_with()
         mock_actually_get_html.assert_called_once_with(mock_urls)
 
+    def test_actually_collect_data_list(self):
+        """Test '_actually_collect_data' gets item URLs from a list page."""
+        mock_item_urls_response = Response()
+        mock_item_urls_response.url = 'url?search=1'
+        mock_item_urls_response.status_code = 200
+
+        self.pipeline.scraper.list_url_template = 'url?search='
+        self.pipeline.scraper.get_item_urls.return_value = {}
+
+        self.pipeline._actually_collect_data(mock_item_urls_response)
+
+        self.pipeline.scraper.get_item_urls.assert_called_once_with(
+            mock_item_urls_response
+        )
+        with self.assertRaises(AssertionError):
+            self.pipeline.scraper.get_item_properties.assert_called_once_with()
+
+        self.pipeline.data_queue.put.assert_called_once_with({})
+        self.pipeline.scraping_in_progress.set.assert_called_once_with()
+        self.pipeline.scraping_in_progress.clear.assert_called_once_with()
+
+    def test_actually_collect_data_item(self):
+        """Test '_actually_collect_data' gets item data from items page."""
+        mock_item_response = Response()
+        mock_item_response.url = 'url-item-1'
+        mock_item_response.status_code = 200
+
+        self.pipeline.scraper.list_url_template = 'url?search='
+        self.pipeline.scraper.get_item_properties.return_value = {}
+
+        self.pipeline._actually_collect_data(mock_item_response)
+
+        self.pipeline.scraper.get_item_properties.assert_called_once_with(
+            mock_item_response
+        )
+        with self.assertRaises(AssertionError):
+            self.pipeline.scraper.get_item_urls.assert_called_once_with()
+
+        self.pipeline.data_queue.put.assert_called_once_with({})
+        self.pipeline.scraping_in_progress.set.assert_called_once_with()
+        self.pipeline.scraping_in_progress.clear.assert_called_once_with()
+
+    @patch('scrapemeagain.pipeline.logging')
+    def test_actually_collect_data_fails(self, mock_logging):
+        """Test '_actually_collect_data' logs an exception message on fail."""
+        mock_item_response = Response()
+        mock_item_response.url = 'url-item-1'
+        mock_item_response.status_code = 200
+
+        self.pipeline.data_queue.side_effect = ValueError
+
+        self.pipeline._actually_collect_data(mock_item_response)
+
+        self.pipeline.scraping_in_progress.set.assert_called_once_with()
+        self.pipeline.scraping_in_progress.clear.assert_called_once_with()
+        mock_logging.exception.assert_called_once_with(
+            'Failed processing response for "url-item-1"'
+        )
+
+    @patch('scrapemeagain.pipeline.Pipeline._actually_collect_data')
+    def test_collect_data(self, mock_actually_collect_data):
+        """Test 'collect_data' pupulates and passes response bulks for
+        processing."""
+        mock_urls = ['url1', 'url2', 'url3']
+        mock_url_statuses = [200, 500, 200]
+        mock_responses = create_responses(mock_urls, mock_url_statuses)
+        self.pipeline.response_queue.get.side_effect = mock_responses + [EXIT]
+
+        self.pipeline.collect_data()
+
+        # 4 = len(mock_responses) + EXIT
+        self.assertEqual(self.pipeline.response_queue.get.call_count, 4)
+
+        # 3 = len(mock_responses)
+        self.assertEqual(mock_actually_collect_data.call_count, 3)
 
 if __name__ == '__main__':
     unittest.main()

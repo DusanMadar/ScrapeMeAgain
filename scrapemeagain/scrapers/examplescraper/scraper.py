@@ -28,7 +28,7 @@ class ExampleScraper(BaseScraper):
         # We only want first 10 lists.
         return 110
 
-    def get_list_items_urls(self, response):
+    def get_item_urls(self, response):
         links = []
         soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -47,6 +47,7 @@ class ExampleScraper(BaseScraper):
         return links
 
     def get_item_properties(self, response):
+        # TODO how about moveing this to '_actually_collect_data()'?
         # Always provide an URL so it can be removed from URLs table
         # (and thus marked as processed).
         properties = {
