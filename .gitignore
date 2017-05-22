@@ -9,3 +9,7 @@ __pycache__/
 data/
 log/
 venv/
+venv3/
+
+# tests
+.coverage
