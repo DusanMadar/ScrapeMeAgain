@@ -237,7 +237,7 @@ class Pipeline(object):
         self.release_workers()
 
     def get_item_properties(self):
-        """Get item properties from from item pages."""
+        """Get item properties from item pages."""
         # DB --> url_queue.
         self.employ_worker(self.produce_item_urls)
 
