@@ -22,13 +22,13 @@ def queue_waiter(f):
     return with_sleep
 
 
-def create_responses(urls, statuses):
+def create_responses(mock_urls, mock_statuses):
     responses = []
 
-    for fake_url, fake_status in zip(urls, statuses):
+    for mock_url, mock_status in zip(mock_urls, mock_statuses):
         response = Response()
-        response.url = fake_url
-        response.status_code = fake_status
+        response.url = mock_url
+        response.status_code = mock_status
 
         responses.append(response)
 
@@ -106,13 +106,13 @@ class TestPipeline(TestPipelineBase):
         """Test '_actually_get_html' fires requests for given URLs."""
         mock_urls = ['url1', 'url2', 'url3']
         mock_url_statuses = [200, 500, 200]
-        self.mock_map.return_value = create_responses(
+        self.pipeline.pool.map.return_value = create_responses(
             mock_urls, mock_url_statuses
         )
 
         self.pipeline._actually_get_html(mock_urls)
 
-        self.mock_map.assert_called_once_with(get, mock_urls)
+        self.pipeline.pool.map.assert_called_once_with(get, mock_urls)
         self.assertEqual(mock_classify_response.call_count, len(mock_urls))
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()
@@ -124,11 +124,11 @@ class TestPipeline(TestPipelineBase):
     @patch('scrapemeagain.pipeline.logging')
     def test_actually_get_html_fails(self, mock_logging):
         """Test '_actually_get_html' logs an exception message on fail."""
-        self.mock_map.side_effect = ValueError
+        self.pipeline.pool.map.side_effect = ValueError
 
         self.pipeline._actually_get_html(None)
 
-        self.mock_map.assert_called_once_with(get, None)
+        self.pipeline.pool.map.assert_called_once_with(get, None)
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()
         mock_logging.exception.assert_called_once_with('Failed scraping URLs')
@@ -136,7 +136,7 @@ class TestPipeline(TestPipelineBase):
     @patch('scrapemeagain.pipeline.Pipeline._actually_get_html')
     @patch('scrapemeagain.pipeline.Pipeline.change_ip')
     def test_get_html(self, mock_change_ip, mock_actually_get_html):
-        """Test 'get_html' pupulates and passes URL bulks for processing."""
+        """Test 'get_html' populates and passes URL bulks for processing."""
         mock_urls = ['url1', 'url2', 'url3']
         self.pipeline.url_queue.get.side_effect = mock_urls + [EXIT]
         self.pipeline.processes = len(mock_urls)
@@ -210,8 +210,9 @@ class TestPipeline(TestPipelineBase):
 
     @patch('scrapemeagain.pipeline.Pipeline._actually_collect_data')
     def test_collect_data(self, mock_actually_collect_data):
-        """Test 'collect_data' pupulates and passes response bulks for
-        processing."""
+        """Test 'collect_data' populates and passes response bulks for
+        processing.
+        """
         mock_urls = ['url1', 'url2', 'url3']
         mock_url_statuses = [200, 500, 200]
         mock_responses = create_responses(mock_urls, mock_url_statuses)
@@ -224,6 +225,96 @@ class TestPipeline(TestPipelineBase):
 
         # 3 = len(mock_responses)
         self.assertEqual(mock_actually_collect_data.call_count, 3)
+
+    def test_actually_store_data_item_urls(self):
+        """Test '_actually_store_data' is able to store item URLs."""
+        mock_data = [{'url': 'url1'}, {'url': 'url2'}]
+        self.pipeline.scrape_processes = len(mock_data)
+
+        self.pipeline._actually_store_data(mock_data)
+
+        self.pipeline.databaser.insert_multiple.assert_called_once_with(
+            mock_data, self.pipeline.databaser.item_urls_table
+        )
+        self.assertEqual(self.pipeline.transaction_items, 2)
+
+    def test_actually_store_data_item_properties(self):
+        """Test '_actually_store_data' is able to store item properties."""
+        mock_data = {'url': 'url1', 'key': 'value'}
+
+        self.pipeline._actually_store_data(mock_data)
+
+        self.pipeline.databaser.insert.assert_called_once_with(
+            mock_data, self.pipeline.databaser.item_data_table
+        )
+        self.pipeline.databaser.delete_url.assert_called_once_with(
+            mock_data['url']
+        )
+        self.assertEqual(self.pipeline.transaction_items, 2)
+
+    def test_actually_store_data_commits(self):
+        """Test '_actually_store_data' commits chnages after a threshold is
+        reached and resets the counter.
+        """
+        self.pipeline.transaction_items_max = 1
+
+        mock_data = {'url': 'url1', 'key': 'value'}
+
+        self.pipeline._actually_store_data(mock_data)
+
+        self.pipeline.databaser.commit.assert_called_once_with()
+        self.assertEqual(self.pipeline.transaction_items, 0)
+
+    @patch('scrapemeagain.pipeline.logging')
+    def test_actually_store_data_fails(self, mock_logging):
+        """Test '_actually_store_data' logs an exception message on fail."""
+        self.pipeline._actually_store_data(None)
+
+        mock_logging.exception.assert_called_once_with('Failed storing data')
+
+    @patch('scrapemeagain.pipeline.Pipeline._actually_store_data')
+    def test_store_data(self, mock_actually_store_data):
+        """Test 'store_data' takes data from the 'data_queue' and pass it to
+        '_actually_store_data' (to save it in DB), and all changes are
+        committed before exiting.
+        """
+        mock_data = [
+            {'url': 'url1', 'key': 'value'}, {'url': 'url2', 'key': 'value'}
+        ]
+        self.pipeline.data_queue.get.side_effect = mock_data + [EXIT]
+
+        self.pipeline.store_data()
+
+        # 3 = len(mock_data) + EXIT
+        self.assertEqual(self.pipeline.data_queue.get.call_count, 3)
+
+        self.pipeline.databaser.commit.assert_called_once_with()
+
+    def test_exit_workers(self):
+        """Test 'exit_workers' passes an EXIT message to all queues."""
+        self.pipeline.exit_workers()
+
+        self.pipeline.url_queue.put.assert_called_once_with(EXIT)
+        self.pipeline.response_queue.put.assert_called_once_with(EXIT)
+        self.pipeline.data_queue.put.assert_called_once_with(EXIT)
+
+    @patch('scrapemeagain.pipeline.time')
+    @patch('scrapemeagain.pipeline.Pipeline.exit_workers')
+    def test_switch_power(self, mock_exit_workers, mock_time):
+        """Test 'switch_power' repeatedly checks the program can end."""
+        self.pipeline.url_queue.empty.side_effect = [True, False, True]
+        self.pipeline.response_queue.empty.side_effect = [False, True]
+        self.pipeline.data_queue.empty.side_effect = [True]
+        self.pipeline.requesting_in_progress.is_set.side_effect = [False]
+        self.pipeline.scraping_in_progress.is_set.side_effect = [False]
+
+        self.pipeline.switch_power()
+
+        # Both 'url_queue' and 'response_queue' aren't empty once so we expect
+        # 'switch_power' will need to wait 2 times.
+        self.assertTrue(mock_time.sleep.call_count, 2)
+
+        mock_exit_workers.assert_called_once_with()
 
 if __name__ == '__main__':
     unittest.main()
