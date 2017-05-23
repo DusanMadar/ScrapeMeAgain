@@ -1,6 +1,3 @@
-from functools import wraps
-from pprint import pprint
-from time import sleep
 import unittest
 from unittest.mock import patch
 
@@ -9,17 +6,6 @@ from requests import Response
 from pipeline_base import TestPipelineBase
 from scrapemeagain.pipeline import EXIT
 from scrapemeagain.utils.http import get
-
-
-def queue_waiter(f):
-    """Give queues some time to end properly."""
-    @wraps(f)
-    def with_sleep(*args, **kwargs):
-        retval = f(*args, **kwargs)
-        sleep(0.1)
-        return retval
-
-    return with_sleep
 
 
 def create_responses(mock_urls, mock_statuses):
@@ -36,6 +22,19 @@ def create_responses(mock_urls, mock_statuses):
 
 
 class TestPipeline(TestPipelineBase):
+    @patch('scrapemeagain.pipeline.Event')
+    @patch('scrapemeagain.pipeline.Pool')
+    @patch('scrapemeagain.pipeline.Queue')
+    def test_prepare_multiprocessing(self, mock_queue, mock_pool, mock_event):
+        """Test 'prepare_multiprocessing' initializes all necessary
+        multiprocessing objects.
+        """
+        self.pipeline.prepare_multiprocessing()
+
+        self.assertTrue(mock_queue.call_count, 3)
+        mock_pool.assert_called_once_with(self.pipeline.scrape_processes)
+        self.assertTrue(mock_event.call_count, 2)
+
     def test_change_ip(self):
         """Test 'change_ip' simply sets a new IP via Tor."""
         self.pipeline.change_ip()
@@ -315,6 +314,63 @@ class TestPipeline(TestPipelineBase):
         self.assertTrue(mock_time.sleep.call_count, 2)
 
         mock_exit_workers.assert_called_once_with()
+
+    @patch('scrapemeagain.pipeline.Process')
+    def test_employ_worker(self, mock_process):
+        """Test 'employ_worker' creates and registers a dameon worker."""
+        self.pipeline.employ_worker(all)
+
+        mock_process.assert_called_once_with(target=all)
+        self.assertTrue(mock_process.daemon)
+        mock_process.return_value.start.assert_called_once_with()
+
+        self.assertEqual(len(self.pipeline.workers), 1)
+
+    @patch('scrapemeagain.pipeline.Process')
+    def test_release_workers(self, mock_process):
+        """Test 'release_workers' waits till a worker is finished."""
+        self.pipeline.workers = [mock_process]
+
+        self.pipeline.release_workers()
+
+        mock_process.join.assert_called_once_with()
+
+    @patch('scrapemeagain.pipeline.Pipeline.release_workers')
+    @patch('scrapemeagain.pipeline.Pipeline.employ_worker')
+    @patch('scrapemeagain.pipeline.Pipeline.get_html')
+    def test_get_item_urls(
+        self, mock_get_html, mock_employ_worker, mock_release_workers
+    ):
+        """Test 'get_item_urls' starts all necessary workers and waits till
+        they are finished.
+        """
+        self.pipeline.get_item_urls()
+
+        mock_employ_worker.assert_any_call(self.pipeline.produce_list_urls)
+        mock_employ_worker.assert_any_call(self.pipeline.collect_data)
+        mock_employ_worker.assert_any_call(self.pipeline.store_data)
+        mock_employ_worker.assert_any_call(self.pipeline.switch_power)
+        mock_get_html.assert_called_once_with()
+        mock_release_workers.assert_called_once_with()
+
+    @patch('scrapemeagain.pipeline.Pipeline.release_workers')
+    @patch('scrapemeagain.pipeline.Pipeline.employ_worker')
+    @patch('scrapemeagain.pipeline.Pipeline.get_html')
+    def test_get_item_properties(
+        self, mock_get_html, mock_employ_worker, mock_release_workers
+    ):
+        """Test 'get_item_properties' starts all necessary workers and waits
+        till they are finished.
+        """
+        self.pipeline.get_item_properties()
+
+        mock_employ_worker.assert_any_call(self.pipeline.produce_item_urls)
+        mock_employ_worker.assert_any_call(self.pipeline.collect_data)
+        mock_employ_worker.assert_any_call(self.pipeline.store_data)
+        mock_employ_worker.assert_any_call(self.pipeline.switch_power)
+        mock_get_html.assert_called_once_with()
+        mock_release_workers.assert_called_once_with()
+
 
 if __name__ == '__main__':
     unittest.main()
