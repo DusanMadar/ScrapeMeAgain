@@ -6,7 +6,6 @@ from multiprocessing import Event, Pool, Process, Queue
 import time
 
 import config
-from toripchanger import TorIpChanger
 from .utils.http import get
 
 
@@ -14,37 +13,34 @@ EXIT = '__exit__'
 
 
 class Pipeline(object):
-    def __init__(self, scraper, databaser):
+    def __init__(self, scraper, databaser, tor_ip_changer):
         """
 
         :argument scraper: a scraper instance
         :type scraper: object
         :argument databaser: a databaser instance
         :type databaser: object
+        :argument tor_ip_changer: a TorIpChanger instance
+        :type tor_ip_changer: object
         """
         self.scraper = scraper
         self.databaser = databaser
+        self.tor_ip_changer = tor_ip_changer
+
+        self.scrape_processes = config.SCRAPE_PROCESSES
+
+        self.transaction_items = 0
+        self.transaction_items_max = config.TRANSACTION_SIZE
 
     def prepare_multiprocessing(self):
-        self.processes = config.SCRAPE_PROCESSES
-
         self.url_queue = Queue()
         self.response_queue = Queue()
         self.data_queue = Queue()
 
-        self.pool = Pool(processes=self.processes)
+        self.pool = Pool(processes=self.scrape_processes)
 
         self.requesting_in_progress = Event()
         self.scraping_in_progress = Event()
-
-    def prepare_dependencies(self):
-        self.tor_ip_changer = TorIpChanger(
-            reuse_threshold=config.REUSE_THRESHOLD,
-            local_http_proxy=config.LOCAL_HTTP_PROXY,
-            tor_password=config.TOR_PASSWORD,
-            tor_port=config.TOR_PORT,
-            new_ip_max_attempts=config.NEW_IP_MAX_ATTEMPTS
-        )
 
     def change_ip(self):
         """Change IP address.
@@ -91,7 +87,7 @@ class Pipeline(object):
         while run:
             urls = []
 
-            for _ in range(0, self.processes):
+            for _ in range(0, self.scrape_processes):
                 url = self.url_queue.get()
 
                 print(url)
@@ -133,28 +129,33 @@ class Pipeline(object):
             self._actually_collect_data(response)
 
     def _actually_store_data(self, data):
+        """Store provided data in the DB."""
         try:
             if isinstance(data, list):
                 # Storing item URLs.
                 self.databaser.insert_multiple(
                     data, self.databaser.item_urls_table
                 )
-                self.transaction_items += self.processes
+                # self.scrape_processes == len(data).
+                self.transaction_items += self.scrape_processes
             else:
                 # Storing item data.
                 self.databaser.insert(data, self.databaser.item_data_table)
-                self.transaction_items += 1
 
                 # Remove processed item URL.
                 self.databaser.delete_url(data['url'])
 
-            if self.transaction_items > 5000:
+                # As a new item is inserted and it's URL removed.
+                self.transaction_items += 2
+
+            if self.transaction_items > self.transaction_items_max:
                 self.databaser.commit()
                 self.transaction_items = 0
         except:
             logging.exception('Failed storing data')
 
     def store_data(self):
+        """Consume 'data_queue' and store provided data in the DB."""
         while True:
             data = self.data_queue.get()
             if data == EXIT:
@@ -163,14 +164,18 @@ class Pipeline(object):
             self._actually_store_data(data)
 
         self.databaser.commit()
-        self.transaction_items = 0
 
     def exit_workers(self):
+        """Exit workers started as separate processes by passing an EXIT
+        message to all queues. This action leads to exiting `while` loops which
+        workers processes run in.
+        """
         self.url_queue.put(EXIT)
         self.response_queue.put(EXIT)
         self.data_queue.put(EXIT)
 
-    def check_queues(self):
+    def switch_power(self):
+        """Check when to exit processes so the program won't run forever."""
         while True:
             if (
                 self.url_queue.empty() and
@@ -200,10 +205,17 @@ class Pipeline(object):
         data_storer.daemon = True
         data_storer.start()
 
-        # Prevent endless loop.
-        queue_checker = Process(target=self.check_queues)
-        queue_checker.daemon = True
-        queue_checker.start()
+        # Prevent running forever.
+        power_switcher = Process(target=self.switch_power)
+        power_switcher.daemon = True
+        power_switcher.start()
 
         # url_queue --> response_queue.
+        # NOTE Execution will block until 'get_html' is finished.
         self.get_html()
+
+        # Wait till all workers are finished.
+        item_list_urls_producer.join()
+        data_collector.join()
+        data_storer.join()
+        power_switcher.join()
