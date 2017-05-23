@@ -17,11 +17,12 @@ class Pipeline(object):
         """Webscraping pipeline.
 
         How it works:
-        1. generate item list URLs
+        1. generate URLs for item list pages
         2. scrape item URLs from list pages
         3. store scraped item URLs in the DB
-        4. load item URLs from the DB and get required content
-        5. store collected data in the DB
+        4. load item URLs from the DB
+        5. collect item properties
+        6. store collected data in the DB
 
         :argument scraper: a scraper instance
         :type scraper: object
