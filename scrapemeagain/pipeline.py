@@ -14,7 +14,14 @@ EXIT = '__exit__'
 
 class Pipeline(object):
     def __init__(self, scraper, databaser, tor_ip_changer):
-        """
+        """Webscraping pipeline.
+
+        How it works:
+        1. generate item list URLs
+        2. scrape item URLs from list pages
+        3. store scraped item URLs in the DB
+        4. load item URLs from the DB and get required content
+        5. store collected data in the DB
 
         :argument scraper: a scraper instance
         :type scraper: object
@@ -32,12 +39,15 @@ class Pipeline(object):
         self.transaction_items = 0
         self.transaction_items_max = config.TRANSACTION_SIZE
 
+        self.workers = []
+
     def prepare_multiprocessing(self):
+        """Prepare all necessary multiprocessing objects."""
         self.url_queue = Queue()
         self.response_queue = Queue()
         self.data_queue = Queue()
 
-        self.pool = Pool(processes=self.scrape_processes)
+        self.pool = Pool(self.scrape_processes)
 
         self.requesting_in_progress = Event()
         self.scraping_in_progress = Event()
@@ -189,33 +199,59 @@ class Pipeline(object):
             else:
                 time.sleep(5)
 
+    def employ_worker(self, target):
+        """Create and register a daemon worker process.
+
+        :argument target: worker's task
+        :type target: function
+        """
+        worker = Process(target=target)
+        worker.daemon = True
+        worker.start()
+
+        self.workers.append(worker)
+
+    def release_workers(self):
+        """Wait till all worker daemons are finished."""
+        for worker in self.workers:
+            worker.join()
+
     def get_item_urls(self):
+        """Get item URLs from item list pages."""
         # scraper --> url_queue.
-        item_list_urls_producer = Process(target=self.produce_list_urls)
-        item_list_urls_producer.daemon = True
-        item_list_urls_producer.start()
+        self.employ_worker(self.produce_list_urls)
 
         # response_queue --> data_queue.
-        data_collector = Process(target=self.collect_data)
-        data_collector.daemon = True
-        data_collector.start()
+        self.employ_worker(self.collect_data)
 
         # data_queue --> DB.
-        data_storer = Process(target=self.store_data)
-        data_storer.daemon = True
-        data_storer.start()
+        self.employ_worker(self.store_data)
 
         # Prevent running forever.
-        power_switcher = Process(target=self.switch_power)
-        power_switcher.daemon = True
-        power_switcher.start()
+        self.employ_worker(self.switch_power)
 
-        # url_queue --> response_queue.
         # NOTE Execution will block until 'get_html' is finished.
+        # url_queue --> response_queue.
         self.get_html()
 
-        # Wait till all workers are finished.
-        item_list_urls_producer.join()
-        data_collector.join()
-        data_storer.join()
-        power_switcher.join()
+        self.release_workers()
+
+    def get_item_properties(self):
+        """Get item properties from from item pages."""
+        # DB --> url_queue.
+        self.employ_worker(self.produce_item_urls)
+
+        # response_queue --> data_queue.
+        self.employ_worker(self.collect_data)
+
+        # data_queue --> DB.
+        self.employ_worker(self.store_data)
+
+        # Prevent running forever.
+        self.employ_worker(self.switch_power)
+
+        # NOTE Execution will block until 'get_html' is finished.
+        # url_queue --> response_queue.
+        self.get_html()
+
+        self.release_workers()
