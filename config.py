@@ -2,19 +2,24 @@ import os
 
 #
 # General settings.
-# This directory will be populated with scraped data.
+# Where to place the *.sqlite DB file populated with scraped data.
 DATA_DIRECTORY = '/tmp'
 
 # Log level settings (NOTE 'debug' will be very verbose).
 LOG_LEVEL = 'WARNING'
 
+# How often data should be commited to the DB.
+TRANSACTION_SIZE = 5000
+
 #
 # Scraping settings.
-# Number asynchronously scraped URLs.
+# Number of processes used to asynchronously scrape data from URLs.
 SCRAPE_PROCESSES = 5
-# How long to wait for a response (is seconds).
+
+# How long to wait for a response (in seconds).
 REQUEST_TIMEOUT = 5
 
+#
 # TorIpChanger settings.
 LOCAL_HTTP_PROXY = '127.0.0.1:8118'
 NEW_IP_MAX_ATTEMPTS = 1000
