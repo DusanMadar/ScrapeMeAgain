@@ -4,7 +4,7 @@ from config import Config
 from scrapemeagain.databaser import Databaser
 from scrapemeagain.pipeline import Pipeline
 from scrapemeagain.scrapers import ExampleScraper
-from scrapemeagain.utils.logget import setup_logging
+from scrapemeagain.utils.logger import setup_logging
 from scrapemeagain.utils.useragents import get_user_agents
 
 
