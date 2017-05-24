@@ -4,6 +4,7 @@ from config import Config
 from scrapemeagain.databaser import Databaser
 from scrapemeagain.pipeline import Pipeline
 from scrapemeagain.scrapers import ExampleScraper
+from scrapemeagain.utils.logget import setup_logging
 from scrapemeagain.utils.useragents import get_user_agents
 
 
@@ -19,6 +20,9 @@ tor_ip_changer = TorIpChanger(
 # Configure useragents.
 Config.USER_AGENTS = get_user_agents()
 
+# Configure logging.
+setup_logging(logger_name='example-scraper')
+
 
 # Prepare the scraping pipeline.
 scraper = ExampleScraper()
@@ -31,3 +35,6 @@ pipeline.tor_ip_changer.get_new_ip()
 
 # Collect item URLs.
 pipeline.get_item_urls()
+
+# Collect item properties.
+pipeline.get_item_properties()

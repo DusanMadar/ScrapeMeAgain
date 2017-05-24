@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 
 from .model import ExampleDataTable
 from scrapemeagain.scrapers import BaseScraper
-from scrapemeagain.utils import logger
 
 
 URL_QUERY = '/url?q='
@@ -14,9 +13,6 @@ class ExampleScraper(BaseScraper):
 
     db_file = 'example'
     db_table = ExampleDataTable
-
-    def __init__(self):
-        logger.setup_logging(logger_name='example-scraper')
 
     def generate_list_urls(self):
         list_count = self.get_lists_count()
