@@ -4,12 +4,17 @@
 from datetime import datetime
 
 
+DATE_FORMAT = '%Y.%m.%d'
+TIME_FORMAT = '%H:%M:%S'
+DATE_TIME_FORMAT = '{d} {t}'.format(d=DATE_FORMAT, t=TIME_FORMAT)
+
+
 def get_current_date():
     """Get a `YYYY.MM.DD` date stamp.
 
     :returns str
     """
-    return datetime.strftime(datetime.now(), '%Y.%m.%d')
+    return datetime.strftime(datetime.now(), DATE_FORMAT)
 
 
 def get_current_datetime():
@@ -17,4 +22,4 @@ def get_current_datetime():
 
     :returns str
     """
-    return datetime.strftime(datetime.now(), '%Y.%m.%d %H:%M:%S')
+    return datetime.strftime(datetime.now(), DATE_TIME_FORMAT)
