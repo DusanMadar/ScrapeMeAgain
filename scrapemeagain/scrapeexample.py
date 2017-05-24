@@ -1,22 +1,33 @@
 from toripchanger import TorIpChanger
 
-import config
+from config import Config
 from scrapemeagain.databaser import Databaser
 from scrapemeagain.pipeline import Pipeline
 from scrapemeagain.scrapers import ExampleScraper
+from scrapemeagain.utils.useragents import get_user_agents
 
-scraper = ExampleScraper()
-databaser = Databaser(scraper.db_file, scraper.db_table)
+
+# Configure TorIpChanger.
 tor_ip_changer = TorIpChanger(
-    reuse_threshold=config.REUSE_THRESHOLD,
-    local_http_proxy=config.LOCAL_HTTP_PROXY,
-    tor_password=config.TOR_PASSWORD,
-    tor_port=config.TOR_PORT,
-    new_ip_max_attempts=config.NEW_IP_MAX_ATTEMPTS
+    reuse_threshold=Config.REUSE_THRESHOLD,
+    local_http_proxy=Config.LOCAL_HTTP_PROXY,
+    tor_password=Config.TOR_PASSWORD,
+    tor_port=Config.TOR_PORT,
+    new_ip_max_attempts=Config.NEW_IP_MAX_ATTEMPTS
 )
 
+# Configure useragents.
+Config.USER_AGENTS = get_user_agents()
+
+
+# Prepare the scraping pipeline.
+scraper = ExampleScraper()
+databaser = Databaser(scraper.db_file, scraper.db_table)
 pipeline = Pipeline(scraper, databaser, tor_ip_changer)
 pipeline.prepare_multiprocessing()
+
+# Change IP before starting.
 pipeline.tor_ip_changer.get_new_ip()
 
+# Collect item URLs.
 pipeline.get_item_urls()
