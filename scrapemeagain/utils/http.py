@@ -1,8 +1,15 @@
+"""Common HTTP functions."""
+
+
+import logging
 from random import sample
 
 import requests
 
 from config import Config
+
+
+RESPONSE_LOG_MESSAGE = '{status} - {url}'
 
 
 def get(url, **kwargs):
@@ -26,6 +33,9 @@ def get(url, **kwargs):
 
     try:
         response = requests.get(url, **kwargs)
+        logging.debug(RESPONSE_LOG_MESSAGE.format(
+            status=response.status_code, url=response.url
+        ))
     except Exception as exc:
         # Don't fail on any exception and setup a fake response instead.
         response = requests.Response()
@@ -35,5 +45,14 @@ def get(url, **kwargs):
             response.status_code = 408
         else:
             response.status_code = 503
+
+        error_message = RESPONSE_LOG_MESSAGE.format(
+            status=response.status_code, url=response.url
+        )
+
+        try:
+            error_message += ' - {}'.format(str(exc))
+        finally:
+            logging.error(error_message)
 
     return response
