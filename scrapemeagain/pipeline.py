@@ -2,10 +2,11 @@
 
 
 import logging
-from multiprocessing import Event, Pool, Process, Queue
+from multiprocessing import Event, Pool, Process, Queue, Value
 import time
 
 from config import Config
+from .utils.alnum import get_current_datetime
 from .utils.http import get
 
 
@@ -53,6 +54,32 @@ class Pipeline(object):
         self.requesting_in_progress = Event()
         self.scraping_in_progress = Event()
 
+        self.urls_to_process = Value('i', 0)
+        self.urls_processed = Value('i', 0)
+
+    def inform(self, message, log=True, end='\n'):
+        """Print and if set log a message.
+
+        :argument message:
+        :type message: str
+
+        """
+        if log:
+            logging.info(message)
+
+        print('{0} {1}'.format(get_current_datetime(), message), end=end)
+
+    def _inform_progress(self):
+        """Print a message about how the scraping is progressing."""
+        try:
+            message = 'Processed {0} ({1:.2f}%) URLs'.format(
+                self.urls_processed.value,
+                self.urls_processed.value / self.urls_to_process.value * 100
+            )
+            self.inform(message, log=False, end='\r')
+        except ZeroDivisionError:
+            pass
+
     def change_ip(self):
         """Change IP address.
 
@@ -63,23 +90,28 @@ class Pipeline(object):
             logging.info('New IP: {new_ip}'.format(new_ip=new_ip))
         except:
             logging.error('Failed setting new IP')
-            self.change_ip()
+            return self.change_ip()
+
+    def _produce_urls(self, producer_function):
+        """Use the provided 'producer_function' to populate 'url_queue'."""
+        for list_url in producer_function():
+            self.url_queue.put(list_url)
+
+        self.urls_to_process.value = self.url_queue.qsize()
+        self.inform('URLs to process: {}'.format(self.urls_to_process.value))
 
     def produce_list_urls(self):
         """Populate 'url_queue' with generated list URLs."""
-        for list_url in self.scraper.generate_list_urls():
-            self.url_queue.put(list_url)
+        self._produce_urls(self.scraper.generate_list_urls)
 
     def produce_item_urls(self):
         """Populate 'url_queue' with loaded item URLs."""
-        for item_url in self.databaser.get_item_urls():
-            self.url_queue.put(item_url)
+        self._produce_urls(self.databaser.get_item_urls)
 
     def _classify_response(self, response):
         """Examine response and put it to 'response_queue' if it's OK or put
         it's URL  back to 'url_queue'.
         """
-        print(response)
         if not response.ok and response.status_code >= 408:
             self.url_queue.put(response.url)
         else:
@@ -106,7 +138,6 @@ class Pipeline(object):
             for _ in range(0, self.scrape_processes):
                 url = self.url_queue.get()
 
-                print(url)
                 if url == EXIT:
                     run = False
                     break
@@ -169,6 +200,8 @@ class Pipeline(object):
                 self.transaction_items = 0
         except:
             logging.error('Failed storing data')
+        finally:
+            self.urls_processed.value += 1
 
     def store_data(self):
         """Consume 'data_queue' and store provided data in the DB."""
@@ -176,6 +209,8 @@ class Pipeline(object):
             data = self.data_queue.get()
             if data == EXIT:
                 break
+            elif not data:
+                continue
 
             self._actually_store_data(data)
 
@@ -186,6 +221,8 @@ class Pipeline(object):
         message to all queues. This action leads to exiting `while` loops which
         workers processes run in.
         """
+        self.inform('Exiting workers, please wait ...')
+
         self.url_queue.put(EXIT)
         self.response_queue.put(EXIT)
         self.data_queue.put(EXIT)
@@ -203,6 +240,7 @@ class Pipeline(object):
                 self.exit_workers()
                 break
             else:
+                self._inform_progress()
                 time.sleep(5)
 
     def employ_worker(self, target):
@@ -224,6 +262,8 @@ class Pipeline(object):
 
     def get_item_urls(self):
         """Get item URLs from item list pages."""
+        self.inform('Collecting item URLs')
+
         # scraper --> url_queue.
         self.employ_worker(self.produce_list_urls)
 
@@ -244,6 +284,8 @@ class Pipeline(object):
 
     def get_item_properties(self):
         """Get item properties from item pages."""
+        self.inform('Collecting item properties')
+
         # DB --> url_queue.
         self.employ_worker(self.produce_item_urls)
 
