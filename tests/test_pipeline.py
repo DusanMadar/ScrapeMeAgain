@@ -116,7 +116,7 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()
         with self.assertRaises(AssertionError):
-            mock_logging.exception.assert_called_once_with(
+            mock_logging.error.assert_called_once_with(
                 'Failed scraping URLs'
             )
 
@@ -130,7 +130,7 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.pool.map.assert_called_once_with(get, None)
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()
-        mock_logging.exception.assert_called_once_with('Failed scraping URLs')
+        mock_logging.error.assert_called_once_with('Failed scraping URLs')
 
     @patch('scrapemeagain.pipeline.Pipeline._actually_get_html')
     @patch('scrapemeagain.pipeline.Pipeline.change_ip')
@@ -203,7 +203,7 @@ class TestPipeline(TestPipelineBase):
 
         self.pipeline.scraping_in_progress.set.assert_called_once_with()
         self.pipeline.scraping_in_progress.clear.assert_called_once_with()
-        mock_logging.exception.assert_called_once_with(
+        mock_logging.error.assert_called_once_with(
             'Failed processing response for "url-item-1"'
         )
 
@@ -269,7 +269,7 @@ class TestPipeline(TestPipelineBase):
         """Test '_actually_store_data' logs an exception message on fail."""
         self.pipeline._actually_store_data(None)
 
-        mock_logging.exception.assert_called_once_with('Failed storing data')
+        mock_logging.error.assert_called_once_with('Failed storing data')
 
     @patch('scrapemeagain.pipeline.Pipeline._actually_store_data')
     def test_store_data(self, mock_actually_store_data):
