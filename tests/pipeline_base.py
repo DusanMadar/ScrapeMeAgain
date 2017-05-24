@@ -4,6 +4,10 @@ from unittest.mock import Mock
 from scrapemeagain.pipeline import Pipeline
 
 
+class MockValue(object):
+    value = 0
+
+
 class TestPipelineBase(TestCase):
     def setUp(self):
         self.pipeline = Pipeline(Mock(), Mock(), Mock())
@@ -33,3 +37,11 @@ class TestPipelineBase(TestCase):
         # Ensure each pipeline's Event is an unique Mock object.
         self.pipeline.requesting_in_progress = Mock()
         self.pipeline.scraping_in_progress = Mock()
+
+        # Mock counter Values.
+        mock_urls_to_process = Mock()
+        mock_urls_to_process.value = 0
+        self.pipeline.urls_to_process = mock_urls_to_process
+        mock_urls_processed = Mock()
+        mock_urls_processed.value = 0
+        self.pipeline.urls_processed = mock_urls_processed
