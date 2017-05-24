@@ -12,9 +12,7 @@ from .alnum import get_current_date
 
 def setup_logging(logger_name):
     # Ensure log dir exists.
-    parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    log_dir = os.path.join(parent_dir, 'log')
-
+    log_dir = os.path.join(Config.DATA_DIRECTORY, 'log')
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
 
