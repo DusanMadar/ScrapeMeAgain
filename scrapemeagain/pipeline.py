@@ -5,7 +5,7 @@ import logging
 from multiprocessing import Event, Pool, Process, Queue
 import time
 
-import config
+from config import Config
 from .utils.http import get
 
 
@@ -35,10 +35,10 @@ class Pipeline(object):
         self.databaser = databaser
         self.tor_ip_changer = tor_ip_changer
 
-        self.scrape_processes = config.SCRAPE_PROCESSES
+        self.scrape_processes = Config.SCRAPE_PROCESSES
 
         self.transaction_items = 0
-        self.transaction_items_max = config.TRANSACTION_SIZE
+        self.transaction_items_max = Config.TRANSACTION_SIZE
 
         self.workers = []
 

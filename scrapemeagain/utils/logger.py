@@ -6,7 +6,7 @@ import os
 
 import requests
 
-from config import LOG_LEVEL
+from config import Config
 from .alnum import get_current_date
 
 
@@ -25,9 +25,9 @@ def setup_logging(logger_name):
         os.remove(log_file)
 
     # Set log level.
-    log_level = getattr(logging, LOG_LEVEL, None)
+    log_level = getattr(logging, Config.LOG_LEVEL, None)
     if not isinstance(log_level, int):
-        raise ValueError('Invalid log level: "{}"'.format(LOG_LEVEL))
+        raise ValueError('Invalid log level: "{}"'.format(Config.LOG_LEVEL))
 
     # Configure logger.
     logging.basicConfig(

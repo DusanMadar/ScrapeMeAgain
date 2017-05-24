@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from scrapers.basemodels import ItemUrlsTable
-from config import DATA_DIRECTORY
+from config import Config
 
 
 class Databaser(object):
@@ -18,7 +18,7 @@ class Databaser(object):
         :type db_file: str
 
         """
-        self.db_file = os.path.join(DATA_DIRECTORY, db_file) + '.sqlite'
+        self.db_file = os.path.join(Config.DATA_DIRECTORY, db_file) + '.sqlite'
         if not os.path.exists(self.db_file):
             with open(self.db_file, 'w'):
                 pass
