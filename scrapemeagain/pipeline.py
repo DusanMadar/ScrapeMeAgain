@@ -58,7 +58,12 @@ class Pipeline(object):
 
         By default, IP is chnaged after each bunch of URLs is requested.
         """
-        self.tor_ip_changer.get_new_ip()
+        try:
+            new_ip = self.tor_ip_changer.get_new_ip()
+            logging.info('New IP: {new_ip}'.format(new_ip=new_ip))
+        except:
+            logging.error('Failed setting new IP')
+            self.change_ip()
 
     def produce_list_urls(self):
         """Populate 'url_queue' with generated list URLs."""
@@ -86,8 +91,8 @@ class Pipeline(object):
             self.requesting_in_progress.set()
             for response in self.pool.map(get, urls):
                 self._classify_response(response)
-        except Exception:
-            logging.exception('Failed scraping URLs')
+        except:
+            logging.error('Failed scraping URLs')
         finally:
             self.requesting_in_progress.clear()
 
@@ -123,7 +128,7 @@ class Pipeline(object):
 
             self.data_queue.put(data)
         except:
-            logging.exception(
+            logging.error(
                 'Failed processing response for "{}"'.format(response.url)
             )
         finally:
@@ -163,7 +168,7 @@ class Pipeline(object):
                 self.databaser.commit()
                 self.transaction_items = 0
         except:
-            logging.exception('Failed storing data')
+            logging.error('Failed storing data')
 
     def store_data(self):
         """Consume 'data_queue' and store provided data in the DB."""
