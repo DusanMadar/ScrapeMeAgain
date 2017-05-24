@@ -1,6 +1,8 @@
+from random import sample
+
 import requests
 
-from config import LOCAL_HTTP_PROXY, REQUEST_TIMEOUT
+from config import Config
 
 
 def get(url, **kwargs):
@@ -12,11 +14,15 @@ def get(url, **kwargs):
     :returns `requests.Response` instance
     """
     kwargs['proxies'] = {
-        'http': LOCAL_HTTP_PROXY,
-        'https': LOCAL_HTTP_PROXY
+        'http': Config.LOCAL_HTTP_PROXY,
+        'https': Config.LOCAL_HTTP_PROXY
     }
+
     kwargs['verify'] = False
-    kwargs['timeout'] = REQUEST_TIMEOUT
+    kwargs['timeout'] = Config.REQUEST_TIMEOUT
+
+    user_agent = sample(Config.USER_AGENTS, 1)[0]
+    kwargs['headers'] = {'User-Agent': user_agent}
 
     try:
         response = requests.get(url, **kwargs)
