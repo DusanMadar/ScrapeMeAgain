@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 
 from .model import ExampleDataTable
-from scrapemeagain.scrapers import BaseScraper
+from scrapemeagain.scrapers.basescraper import BaseScraper
 
 
 URL_QUERY = '/url?q='
