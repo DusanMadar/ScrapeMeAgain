@@ -6,8 +6,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from scrapers.basemodels import ItemUrlsTable
 from config import Config
+from .scrapers.basemodel import ItemUrlsTable
 
 
 class Databaser(object):
