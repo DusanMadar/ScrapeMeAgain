@@ -20,7 +20,7 @@ class Config(object):
     SCRAPE_PROCESSES = 5
 
     # How long to wait for a response (in seconds).
-    REQUEST_TIMEOUT = 5
+    REQUEST_TIMEOUT = 10
 
     # User agents to use in requests.
     # NOTE must be populated before starting the scraping process.
