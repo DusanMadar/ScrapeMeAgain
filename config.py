@@ -11,7 +11,7 @@ class Config(object):
     # NOTE 'DEBUG' will be very verbose.
     LOG_LEVEL = 'WARNING'
 
-    # How often data should be commited to the DB.
+    # How often data (how many items at once) should be commited to the DB.
     TRANSACTION_SIZE = 5000
 
     #
