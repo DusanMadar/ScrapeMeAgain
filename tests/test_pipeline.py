@@ -1,10 +1,10 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 from requests import Response
 
 from pipeline_base import TestPipelineBase
-from scrapemeagain.pipeline import EXIT
+from scrapemeagain.pipeline import EXIT, DUMP_URLS_BUCKET
 from scrapemeagain.utils.http import get
 
 
@@ -120,13 +120,12 @@ class TestPipeline(TestPipelineBase):
         for mock_url in mock_urls:
             self.pipeline.url_queue.put.assert_any_call(mock_url)
 
-        self.assertEqual(
-            self.pipeline.urls_to_process.value,
-            self.pipeline.url_queue.qsize()
-        )
+        self.assertEqual(self.pipeline.urls_to_process.value, len(mock_urls))
         mock_inform.assert_called_once_with(
             'URLs to process: {}'.format(self.pipeline.urls_to_process.value)
         )
+        self.pipeline.producing_urls_in_progress.set.assert_called_once_with()
+        self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()
 
     @patch('scrapemeagain.pipeline.Pipeline._produce_urls')
     def test_produce_list_urls(self, mock_produce_urls):
@@ -229,13 +228,15 @@ class TestPipeline(TestPipelineBase):
     def test_get_html(self, mock_change_ip, mock_actually_get_html):
         """Test 'get_html' populates and passes URL bulks for processing."""
         mock_urls = ['url1', 'url2', 'url3']
-        self.pipeline.url_queue.get.side_effect = mock_urls + [EXIT]
-        self.pipeline.processes = len(mock_urls)
+        self.pipeline.url_queue.get.side_effect = (
+            mock_urls + [DUMP_URLS_BUCKET] + [EXIT]
+        )
+        self.pipeline.scrape_processes = 4
 
         self.pipeline.get_html()
 
-        # 4 = len(mock_urls) + EXIT
-        self.assertEqual(self.pipeline.url_queue.get.call_count, 4)
+        # 4 = len(mock_urls) + DUMP_URLS_BUCKET + EXIT
+        self.assertEqual(self.pipeline.url_queue.get.call_count, 5)
 
         mock_change_ip.assert_called_once_with()
         mock_actually_get_html.assert_called_once_with(mock_urls)
@@ -413,25 +414,78 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.response_queue.put.assert_called_once_with(EXIT)
         self.pipeline.data_queue.put.assert_called_once_with(EXIT)
 
+    def test_queues_empty(self):
+        """Test '_queues_empty' checks if all queues are empty."""
+        self.pipeline.url_queue.empty.return_value = True
+        self.pipeline.response_queue.empty.return_value = True
+        self.pipeline.data_queue.empty.return_value = True
+
+        queues_empty = self.pipeline._queues_empty()
+
+        self.assertTrue(queues_empty)
+
+        self.pipeline.url_queue.empty.assert_called_once_with()
+        self.pipeline.response_queue.empty.assert_called_once_with()
+        self.pipeline.data_queue.empty.assert_called_once_with()
+
+    def test_workers_idle(self):
+        """Test '_workers_idle' checks if all workers are idle."""
+        self.pipeline.producing_urls_in_progress.is_set.return_value = False
+        self.pipeline.requesting_in_progress.is_set.return_value = False
+        self.pipeline.scraping_in_progress.is_set.return_value = False
+
+        workers_idle = self.pipeline._workers_idle()
+
+        self.assertTrue(workers_idle)
+
+        self.pipeline.producing_urls_in_progress.is_set.assert_called_once_with()  # noqa
+        self.pipeline.requesting_in_progress.is_set.assert_called_once_with()
+        self.pipeline.scraping_in_progress.is_set.assert_called_once_with()
+
     @patch('scrapemeagain.pipeline.time')
     @patch('scrapemeagain.pipeline.Pipeline._inform_progress')
     @patch('scrapemeagain.pipeline.Pipeline.exit_workers')
+    @patch('scrapemeagain.pipeline.Pipeline._queues_empty')
+    @patch('scrapemeagain.pipeline.Pipeline._workers_idle')
     def test_switch_power(
-        self, mock_exit_workers, mock_inform_progress, mock_time
+        self, mock_workers_idle, mock_queues_empty, mock_exit_workers,
+        mock_inform_progress, mock_time
     ):
         """Test 'switch_power' repeatedly checks the program can end."""
-        self.pipeline.url_queue.empty.side_effect = [True, False, True]
-        self.pipeline.response_queue.empty.side_effect = [False, True]
-        self.pipeline.data_queue.empty.side_effect = [True]
-        self.pipeline.requesting_in_progress.is_set.side_effect = [False]
-        self.pipeline.scraping_in_progress.is_set.side_effect = [False]
+        mock_queues_empty.side_effect = [False, False, True, True, True]
+        mock_workers_idle.side_effect = [False, True, True]
 
         self.pipeline.switch_power()
 
         # Both 'url_queue' and 'response_queue' aren't empty once so we expect
         # 'switch_power' will need to wait 2 times.
-        self.assertTrue(mock_time.sleep.call_count, 2)
-        self.assertTrue(mock_inform_progress.call_count, 2)
+        self.assertEqual(mock_time.sleep.call_count, 2)
+        self.assertEqual(mock_inform_progress.call_count, 2)
+        self.assertEqual(self.pipeline.url_queue.put.call_count, 0)
+
+        mock_exit_workers.assert_called_once_with()
+
+    @patch('scrapemeagain.pipeline.time')
+    @patch('scrapemeagain.pipeline.Pipeline._inform_progress')
+    @patch('scrapemeagain.pipeline.Pipeline.exit_workers')
+    @patch('scrapemeagain.pipeline.Pipeline._queues_empty')
+    @patch('scrapemeagain.pipeline.Pipeline._workers_idle')
+    def test_switch_power_dumps_urls(
+        self, mock_workers_idle, mock_queues_empty, mock_exit_workers,
+        mock_inform_progress, mock_time
+    ):
+        """Test 'switch_power' is able to dump URLs bucket."""
+        mock_queues_empty.side_effect = [True, True, True]
+        mock_workers_idle.side_effect = [True, True, True]
+        type(self.pipeline.urls_bucket_empty).value = PropertyMock(
+            side_effect=[0, 0, 1]
+        )
+
+        self.pipeline.switch_power()
+
+        self.assertEqual(mock_time.sleep.call_count, 1)
+        self.assertEqual(mock_inform_progress.call_count, 1)
+        self.pipeline.url_queue.put.assert_called_once_with(DUMP_URLS_BUCKET)
 
         mock_exit_workers.assert_called_once_with()
 

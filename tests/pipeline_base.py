@@ -35,6 +35,7 @@ class TestPipelineBase(TestCase):
         self.pipeline.data_queue = Mock()
 
         # Ensure each pipeline's Event is an unique Mock object.
+        self.pipeline.producing_urls_in_progress = Mock()
         self.pipeline.requesting_in_progress = Mock()
         self.pipeline.scraping_in_progress = Mock()
 
@@ -45,3 +46,6 @@ class TestPipelineBase(TestCase):
         mock_urls_processed = Mock()
         mock_urls_processed.value = 0
         self.pipeline.urls_processed = mock_urls_processed
+
+        # Mock URLs bucket state.
+        self.pipeline.urls_bucket_empty = Mock()

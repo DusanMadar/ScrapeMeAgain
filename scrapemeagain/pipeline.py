@@ -11,6 +11,7 @@ from .utils.http import get
 
 
 EXIT = '__exit__'
+DUMP_URLS_BUCKET = '__dump_urls_bucket__'
 
 
 class Pipeline(object):
@@ -51,11 +52,13 @@ class Pipeline(object):
 
         self.pool = Pool(self.scrape_processes)
 
+        self.producing_urls_in_progress = Event()
         self.requesting_in_progress = Event()
         self.scraping_in_progress = Event()
 
         self.urls_to_process = Value('i', 0)
         self.urls_processed = Value('i', 0)
+        self.urls_bucket_empty = Value('i', 1)
 
     def inform(self, message, log=True, end='\n'):
         """Print and if set log a message.
@@ -94,11 +97,17 @@ class Pipeline(object):
 
     def _produce_urls(self, producer_function):
         """Use the provided 'producer_function' to populate 'url_queue'."""
+        self.producing_urls_in_progress.set()
+
+        urls_count = 0
         for list_url in producer_function():
             self.url_queue.put(list_url)
+            urls_count += 1
 
-        self.urls_to_process.value = self.url_queue.qsize()
-        self.inform('URLs to process: {}'.format(self.urls_to_process.value))
+        self.inform('URLs to process: {}'.format(urls_count))
+        self.urls_to_process.value = urls_count
+
+        self.producing_urls_in_progress.clear()
 
     def produce_list_urls(self):
         """Populate 'url_queue' with generated list URLs."""
@@ -133,7 +142,8 @@ class Pipeline(object):
         run = True
 
         while run:
-            urls = []
+            urls_bucket = []
+            self.urls_bucket_empty.value = 1
 
             for _ in range(0, self.scrape_processes):
                 url = self.url_queue.get()
@@ -141,11 +151,17 @@ class Pipeline(object):
                 if url == EXIT:
                     run = False
                     break
+                elif url == DUMP_URLS_BUCKET:
+                    break
 
-                urls.append(url)
+                urls_bucket.append(url)
+                if self.urls_bucket_empty.value:
+                    self.urls_bucket_empty.value = 0
 
-            if urls:
-                self._actually_get_html(urls)
+            if urls_bucket:
+                self._actually_get_html(urls_bucket)
+
+            if run:
                 self.change_ip()
 
     def _actually_collect_data(self, response):
@@ -183,8 +199,7 @@ class Pipeline(object):
                 self.databaser.insert_multiple(
                     data, self.databaser.item_urls_table
                 )
-                # self.scrape_processes == len(data).
-                self.transaction_items += self.scrape_processes
+                self.transaction_items += len(data)
             else:
                 # Storing item data.
                 self.databaser.insert(data, self.databaser.item_data_table)
@@ -227,21 +242,51 @@ class Pipeline(object):
         self.response_queue.put(EXIT)
         self.data_queue.put(EXIT)
 
+    def _queues_empty(self):
+        """Check if queues are empty.
+
+        :returns bool
+        """
+        return (
+            self.url_queue.empty() and
+            self.response_queue.empty() and
+            self.data_queue.empty()
+        )
+
+    def _workers_idle(self):
+        """Check if workers are idle.
+
+        :returns bool
+        """
+        return (
+            not self.producing_urls_in_progress.is_set() and
+            not self.requesting_in_progress.is_set() and
+            not self.scraping_in_progress.is_set()
+        )
+
     def switch_power(self):
-        """Check when to exit processes so the program won't run forever."""
+        """Check when to exit workers so the program won't run forever."""
         while True:
+            # Check if workers can end.
             if (
-                self.url_queue.empty() and
-                self.response_queue.empty() and
-                self.data_queue.empty() and
-                not self.requesting_in_progress.is_set() and
-                not self.scraping_in_progress.is_set()
+                self._queues_empty() and
+                self._workers_idle() and
+                self.urls_bucket_empty.value
             ):
                 self.exit_workers()
                 break
-            else:
-                self._inform_progress()
-                time.sleep(5)
+
+            # Ensure all URLs are processed.
+            if (
+                self._queues_empty() and
+                self._workers_idle() and
+                not self.urls_bucket_empty.value
+            ):
+                self.url_queue.put(DUMP_URLS_BUCKET)
+
+            # Inform about the progress.
+            self._inform_progress()
+            time.sleep(5)
 
     def employ_worker(self, target):
         """Create and register a daemon worker process.
