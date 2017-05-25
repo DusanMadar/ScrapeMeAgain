@@ -9,4 +9,6 @@ ScrapeMeAgain leverages `Tor` and `Privoxy`.
 [Tor](https://www.torproject.org/) in combination with [Privoxy](http://www.privoxy.org/) are used for anonymity (i.e. regular IP address changes). Follow this guide for detailed information about installation and configuration: [Crawling anonymously with Tor in Python](http://sacharya.com/crawling-anonymously-with-tor-in-python/).
 
 ## Usage
-You have to provide your own database table description and an actual scraping script which must follow the `BaseScraper` interface. See `scrapemeagain/scrapers/examplescraper` for more details.
+You have to provide your own database table description and an actual scraper class which must follow the `BaseScraper` interface. See `scrapemeagain/scrapers/examplescraper` for more details.
+
+Use `python scrapemeagain/scrapers/examplescraper/main.py` to run the `examplescraper` from command line.
