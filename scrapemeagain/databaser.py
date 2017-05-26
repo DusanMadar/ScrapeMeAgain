@@ -42,9 +42,10 @@ class Databaser(object):
         """Commit changes."""
         try:
             self.session.commit()
-            logging.critical('Changes successfully committed')
-        except:
-            logging.exception('Failed to commit changes, rolling back ...')
+            logging.info('Changes successfully committed')
+        except Exception as exc:
+            logging.error('Failed to commit changes, rolling back ...')
+            logging.exception(exc)
             self.session.rollback()
 
     def insert(self, data, table):
@@ -102,7 +103,7 @@ class Databaser(object):
                 HAVING COUNT(*) > 1
             )
         """.format(
-            id=self.urls.id.key,
+            id=self.item_urls_table.id.key,
             url=self.item_urls_table.url.key,
             table=self.item_urls_table.__tablename__
         ).strip()
@@ -117,7 +118,7 @@ class Databaser(object):
         self._remove_duplicate_item_urls()
 
         return self.session.query(
-            self.item_urls.url
+            self.item_urls_table.url
         ).order_by(
-            self.urls.id.desc()
+            self.item_urls_table.id.desc()
         )
