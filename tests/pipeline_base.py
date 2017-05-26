@@ -4,10 +4,6 @@ from unittest.mock import Mock
 from scrapemeagain.pipeline import Pipeline
 
 
-class MockValue(object):
-    value = 0
-
-
 class TestPipelineBase(TestCase):
     def setUp(self):
         self.pipeline = Pipeline(Mock(), Mock(), Mock())

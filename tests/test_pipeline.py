@@ -107,25 +107,42 @@ class TestPipeline(TestPipelineBase):
         )
 
     @patch('scrapemeagain.pipeline.Pipeline.inform')
-    def test_produce_urls(self, mock_inform):
-        """Test '_produce_urls' populates 'url_queue'."""
-        mock_urls = ['url1', 'url2', 'url3']
-        self.pipeline.scraper.generate_list_urls.return_value = mock_urls
+    def test_produce_urls_inform(self, mock_inform):
+        """Test '_produce_urls' informs about URLs count and manages the
+        'producing_urls_in_progress' event.
+        """
+        self.pipeline._produce_urls(lambda: [])
 
-        self.pipeline._produce_urls(
-            self.pipeline.scraper.generate_list_urls
-        )
-
-        self.pipeline.scraper.generate_list_urls.assert_called_once_with()
-        for mock_url in mock_urls:
-            self.pipeline.url_queue.put.assert_any_call(mock_url)
-
-        self.assertEqual(self.pipeline.urls_to_process.value, len(mock_urls))
+        self.assertEqual(self.pipeline.urls_to_process.value, 0)
         mock_inform.assert_called_once_with(
             'URLs to process: {}'.format(self.pipeline.urls_to_process.value)
         )
         self.pipeline.producing_urls_in_progress.set.assert_called_once_with()
         self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()
+
+    @patch('scrapemeagain.pipeline.Pipeline.inform')
+    def test_produce_urls_strings(self, mock_inform):
+        """Test '_produce_urls' populates 'url_queue' from list of strings."""
+        mock_urls = ['url1', 'url2', 'url3']
+
+        self.pipeline._produce_urls(lambda: mock_urls)
+
+        for mock_url in mock_urls:
+            self.pipeline.url_queue.put.assert_any_call(mock_url)
+
+        self.assertEqual(self.pipeline.urls_to_process.value, len(mock_urls))
+
+    @patch('scrapemeagain.pipeline.Pipeline.inform')
+    def test_produce_urls_tuples(self, mock_inform):
+        """Test '_produce_urls' populates 'url_queue' from list of tuples."""
+        mock_urls = [('url1',), ('url2',), ('url3',)]
+
+        self.pipeline._produce_urls(lambda: mock_urls)
+
+        for mock_url in mock_urls:
+            self.pipeline.url_queue.put.assert_any_call(mock_url[0])
+
+        self.assertEqual(self.pipeline.urls_to_process.value, len(mock_urls))
 
     @patch('scrapemeagain.pipeline.Pipeline._produce_urls')
     def test_produce_list_urls(self, mock_produce_urls):
@@ -137,24 +154,13 @@ class TestPipeline(TestPipelineBase):
         )
 
     @patch('scrapemeagain.pipeline.Pipeline._produce_urls')
-    def test_produce_item_urls(self, mock_produce_urls):
+    def test_produce_item_urlssss(self, mock_produce_urls):
         """Test 'produce_item_urls' uses 'databaser.get_item_urls'."""
         self.pipeline.produce_item_urls()
 
         mock_produce_urls.assert_called_once_with(
             self.pipeline.databaser.get_item_urls
         )
-
-        # # """Test 'produce_item_urls' populates 'url_queue'."""
-        # mock_urls = ['url1', 'url2', 'url3']
-        # mock_get_item_urls = self.pipeline.databaser.get_item_urls
-        # mock_get_item_urls.return_value = mock_urls
-        #
-        # self.pipeline.produce_item_urls()
-        #
-        # mock_get_item_urls.assert_called_once_with()
-        # for mock_url in mock_urls:
-        #     self.pipeline.url_queue.put.assert_any_call(mock_url)
 
     def test_classify_response_ok(self):
         """Test '_classify_response' puts an OK response to
@@ -222,6 +228,7 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()
         mock_logging.error.assert_called_once_with('Failed scraping URLs')
+        self.assertEqual(mock_logging.exception.call_count, 1)
 
     @patch('scrapemeagain.pipeline.Pipeline._actually_get_html')
     @patch('scrapemeagain.pipeline.Pipeline.change_ip')
@@ -299,6 +306,7 @@ class TestPipeline(TestPipelineBase):
         mock_logging.error.assert_called_once_with(
             'Failed processing response for "url-item-1"'
         )
+        self.assertEqual(mock_logging.exception.call_count, 1)
 
     @patch('scrapemeagain.pipeline.Pipeline._actually_collect_data')
     def test_collect_data(self, mock_actually_collect_data):
@@ -318,23 +326,29 @@ class TestPipeline(TestPipelineBase):
         # 3 = len(mock_responses)
         self.assertEqual(mock_actually_collect_data.call_count, 3)
 
-    def test_actually_store_data_item_urls(self):
-        """Test '_actually_store_data' is able to store item URLs."""
+    def test_store_item_urls(self):
+        """Test '_store_item_urls' stores itm URLs to DB."""
         mock_data = [{'url': 'url1'}, {'url': 'url2'}]
-        self.pipeline.scrape_processes = len(mock_data)
 
-        self.pipeline._actually_store_data(mock_data)
+        self.pipeline._store_item_urls(mock_data)
 
         self.pipeline.databaser.insert_multiple.assert_called_once_with(
             mock_data, self.pipeline.databaser.item_urls_table
         )
-        self.assertEqual(self.pipeline.transaction_items, 2)
+        self.assertEqual(self.pipeline.transaction_items, len(mock_data))
 
-    def test_actually_store_data_item_properties(self):
-        """Test '_actually_store_data' is able to store item properties."""
+    def test_store_item_urls_empty(self):
+        """Test '_store_item_urls' only stores actual item URLs."""
+        self.pipeline._store_item_urls([])
+
+        self.assertEqual(self.pipeline.databaser.insert_multiple.call_count, 0)
+        self.assertEqual(self.pipeline.transaction_items, 0)
+
+    def test_store_item_properties(self):
+        """Test '_store_item_properties' saves item properties to DB."""
         mock_data = {'url': 'url1', 'key': 'value'}
 
-        self.pipeline._actually_store_data(mock_data)
+        self.pipeline._store_item_properties(mock_data)
 
         self.pipeline.databaser.insert.assert_called_once_with(
             mock_data, self.pipeline.databaser.item_data_table
@@ -344,20 +358,51 @@ class TestPipeline(TestPipelineBase):
         )
         self.assertEqual(self.pipeline.transaction_items, 2)
 
-    def test_actually_store_data_commits(self):
-        """Test '_actually_store_data' commits chnages after a threshold is
+    def test_store_item_properties_empty(self):
+        """Test '_store_item_properties' does not store the item and only
+        removes its URL if there are no properties set.
+        """
+        mock_data = {'url': 'url1'}
+
+        self.pipeline._store_item_properties(mock_data)
+
+        self.assertEqual(self.pipeline.databaser.insert.call_count, 0)
+        self.pipeline.databaser.delete_url.assert_called_once_with(
+            mock_data['url']
+        )
+        self.assertEqual(self.pipeline.transaction_items, 1)
+
+    @patch('scrapemeagain.pipeline.Pipeline._store_item_urls')
+    @patch('scrapemeagain.pipeline.Pipeline._store_item_properties')
+    def test_actually_store_data(
+        self, mock_store_item_properties, mock_store_item_urls
+    ):
+        """Test '_actually_store_data' is able to handle both item URLs and
+        properties.
+        """
+        mock_urls = [{'url': 'url1'}, {'url': 'url2'}]
+        self.pipeline._actually_store_data(mock_urls)
+        mock_store_item_urls.assert_called_once_with(mock_urls)
+
+        mock_properties = {'url': 'url1', 'key': 'value'}
+        self.pipeline._actually_store_data(mock_properties)
+        mock_store_item_properties.assert_called_once_with(mock_properties)
+
+    @patch('scrapemeagain.pipeline.Pipeline._store_item_urls')
+    @patch('scrapemeagain.pipeline.Pipeline._store_item_properties')
+    def test_actually_store_data_commits(
+        self, mock_store_item_properties, mock_store_item_urls
+    ):
+        """Test '_actually_store_data' commits changes after a threshold is
         reached and resets the counter.
         """
+        self.pipeline.transaction_items = 2
         self.pipeline.transaction_items_max = 1
 
-        mock_data = {'url': 'url1', 'key': 'value'}
-
-        self.pipeline._actually_store_data(mock_data)
+        self.pipeline._actually_store_data(None)
 
         self.pipeline.databaser.commit.assert_called_once_with()
         self.assertEqual(self.pipeline.transaction_items, 0)
-
-        self.assertTrue(self.pipeline.urls_processed.value, 1)
 
     @patch('scrapemeagain.pipeline.logging')
     def test_actually_store_data_fails(self, mock_logging):
@@ -365,6 +410,7 @@ class TestPipeline(TestPipelineBase):
         self.pipeline._actually_store_data(None)
 
         mock_logging.error.assert_called_once_with('Failed storing data')
+        self.assertEqual(mock_logging.exception.call_count, 1)
 
     @patch('scrapemeagain.pipeline.Pipeline._actually_store_data')
     def test_store_data(self, mock_actually_store_data):
@@ -381,25 +427,6 @@ class TestPipeline(TestPipelineBase):
 
         # 3 = len(mock_data) + EXIT
         self.assertEqual(self.pipeline.data_queue.get.call_count, 3)
-
-        self.pipeline.databaser.commit.assert_called_once_with()
-
-    @patch('scrapemeagain.pipeline.Pipeline._actually_store_data')
-    def test_store_data_no_data(self, mock_actually_store_data):
-        """Test 'store_data'
-        """
-        mock_data = [
-            ['url1', 'url2'],
-            []
-        ]
-        self.pipeline.data_queue.get.side_effect = mock_data + [EXIT]
-
-        self.pipeline.store_data()
-
-        # 3 = len(mock_data) + EXIT
-        self.assertEqual(self.pipeline.data_queue.get.call_count, 3)
-        # 1 because an empty list or dict is not considered to be data.
-        self.assertEqual(mock_actually_store_data.call_count, 1)
 
         self.pipeline.databaser.commit.assert_called_once_with()
 
@@ -465,6 +492,7 @@ class TestPipeline(TestPipelineBase):
 
         mock_exit_workers.assert_called_once_with()
 
+    @patch('scrapemeagain.pipeline.logging')
     @patch('scrapemeagain.pipeline.time')
     @patch('scrapemeagain.pipeline.Pipeline._inform_progress')
     @patch('scrapemeagain.pipeline.Pipeline.exit_workers')
@@ -472,7 +500,7 @@ class TestPipeline(TestPipelineBase):
     @patch('scrapemeagain.pipeline.Pipeline._workers_idle')
     def test_switch_power_dumps_urls(
         self, mock_workers_idle, mock_queues_empty, mock_exit_workers,
-        mock_inform_progress, mock_time
+        mock_inform_progress, mock_time, mock_logging
     ):
         """Test 'switch_power' is able to dump URLs bucket."""
         mock_queues_empty.side_effect = [True, True, True]
@@ -487,6 +515,7 @@ class TestPipeline(TestPipelineBase):
         self.assertEqual(mock_inform_progress.call_count, 1)
         self.pipeline.url_queue.put.assert_called_once_with(DUMP_URLS_BUCKET)
 
+        mock_logging.info.assert_called_once_with('Dumping URLs bucket')
         mock_exit_workers.assert_called_once_with()
 
     @patch('scrapemeagain.pipeline.Process')

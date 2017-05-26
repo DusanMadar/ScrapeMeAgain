@@ -101,6 +101,10 @@ class Pipeline(object):
 
         urls_count = 0
         for list_url in producer_function():
+            if not isinstance(list_url, str):
+                # Pick the URL from SQLAlchemy ResultProxy.
+                list_url = list_url[0]
+
             self.url_queue.put(list_url)
             urls_count += 1
 
@@ -132,8 +136,9 @@ class Pipeline(object):
             self.requesting_in_progress.set()
             for response in self.pool.map(get, urls):
                 self._classify_response(response)
-        except:
+        except Exception as exc:
             logging.error('Failed scraping URLs')
+            logging.exception(exc)
         finally:
             self.requesting_in_progress.clear()
 
@@ -174,10 +179,11 @@ class Pipeline(object):
                 data = self.scraper.get_item_properties(response)
 
             self.data_queue.put(data)
-        except:
+        except Exception as exc:
             logging.error(
                 'Failed processing response for "{}"'.format(response.url)
             )
+            logging.exception(exc)
         finally:
             self.scraping_in_progress.clear()
 
@@ -191,30 +197,48 @@ class Pipeline(object):
 
             self._actually_collect_data(response)
 
+    def _store_item_urls(self, data):
+        """Handle storing item URLs.
+
+        :argument data: item URLs
+        :type data: list
+        """
+        if not data:
+            return
+
+        self.databaser.insert_multiple(data, self.databaser.item_urls_table)
+        self.transaction_items += len(data)
+
+    def _store_item_properties(self, data):
+        """Handle storing item properties.
+
+        :argument data: item properties
+        :type data: dict
+        """
+        if len(data) > 1:
+            # NOTE: if there is only a single item in the data dict (the URL),
+            # there is no point in storing it.
+            self.databaser.insert(data, self.databaser.item_data_table)
+            self.transaction_items += 1
+
+        # Remove processed item URL.
+        self.databaser.delete_url(data['url'])
+        self.transaction_items += 1
+
     def _actually_store_data(self, data):
         """Store provided data in the DB."""
         try:
             if isinstance(data, list):
-                # Storing item URLs.
-                self.databaser.insert_multiple(
-                    data, self.databaser.item_urls_table
-                )
-                self.transaction_items += len(data)
+                self._store_item_urls(data)
             else:
-                # Storing item data.
-                self.databaser.insert(data, self.databaser.item_data_table)
-
-                # Remove processed item URL.
-                self.databaser.delete_url(data['url'])
-
-                # As a new item is inserted and it's URL removed.
-                self.transaction_items += 2
+                self._store_item_properties(data)
 
             if self.transaction_items > self.transaction_items_max:
                 self.databaser.commit()
                 self.transaction_items = 0
-        except:
+        except Exception as exc:
             logging.error('Failed storing data')
+            logging.exception(exc)
         finally:
             self.urls_processed.value += 1
 
@@ -224,8 +248,6 @@ class Pipeline(object):
             data = self.data_queue.get()
             if data == EXIT:
                 break
-            elif not data:
-                continue
 
             self._actually_store_data(data)
 
@@ -282,6 +304,7 @@ class Pipeline(object):
                 self._workers_idle() and
                 not self.urls_bucket_empty.value
             ):
+                logging.info('Dumping URLs bucket')
                 self.url_queue.put(DUMP_URLS_BUCKET)
 
             # Inform about the progress.
