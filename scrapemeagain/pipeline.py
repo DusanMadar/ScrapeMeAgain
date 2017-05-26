@@ -95,18 +95,12 @@ class Pipeline(object):
             logging.error('Failed setting new IP')
             return self.change_ip()
 
-    def _produce_urls(self, producer_function):
-        """Use the provided 'producer_function' to populate 'url_queue'."""
+    def _produce_urls_wrapper(self, producer_function):
+        """Use the provided 'producer_function' to populate 'url_queue'
+        and get URLs count."""
         self.producing_urls_in_progress.set()
 
-        urls_count = 0
-        for list_url in producer_function():
-            if not isinstance(list_url, str):
-                # Pick the URL from SQLAlchemy ResultProxy.
-                list_url = list_url[0]
-
-            self.url_queue.put(list_url)
-            urls_count += 1
+        urls_count = producer_function()
 
         self.inform('URLs to process: {}'.format(urls_count))
         self.urls_to_process.value = urls_count
@@ -115,11 +109,28 @@ class Pipeline(object):
 
     def produce_list_urls(self):
         """Populate 'url_queue' with generated list URLs."""
-        self._produce_urls(self.scraper.generate_list_urls)
+        def producer_function():
+            urls_count = 0
+            for list_url in self.scraper.generate_list_urls():
+                self.url_queue.put(list_url)
+                urls_count += 1
+
+            return urls_count
+
+        self._produce_urls_wrapper(producer_function)
 
     def produce_item_urls(self):
         """Populate 'url_queue' with loaded item URLs."""
-        self._produce_urls(self.databaser.get_item_urls)
+        def producer_function():
+            urls_count = 0
+            for item_url in self.databaser.get_item_urls():
+                # Pick the URL from SQLAlchemy ResultProxy.
+                self.url_queue.put(item_url[0])
+                urls_count += 1
+
+            return urls_count
+
+        self._produce_urls_wrapper(producer_function)
 
     def _classify_response(self, response):
         """Examine response and put it to 'response_queue' if it's OK or put

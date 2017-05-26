@@ -107,13 +107,13 @@ class TestPipeline(TestPipelineBase):
         )
 
     @patch('scrapemeagain.pipeline.Pipeline.inform')
-    def test_produce_urls_inform(self, mock_inform):
-        """Test '_produce_urls' informs about URLs count and manages the
-        'producing_urls_in_progress' event.
+    def test_produce_urls_wrapper(self, mock_inform):
+        """Test '_produce_urls_wrapper' informs about URLs count and manages
+        the 'producing_urls_in_progress' event.
         """
-        self.pipeline._produce_urls(lambda: [])
+        self.pipeline._produce_urls_wrapper(lambda: 5)
 
-        self.assertEqual(self.pipeline.urls_to_process.value, 0)
+        self.assertEqual(self.pipeline.urls_to_process.value, 5)
         mock_inform.assert_called_once_with(
             'URLs to process: {}'.format(self.pipeline.urls_to_process.value)
         )
@@ -121,46 +121,28 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()
 
     @patch('scrapemeagain.pipeline.Pipeline.inform')
-    def test_produce_urls_strings(self, mock_inform):
-        """Test '_produce_urls' populates 'url_queue' from list of strings."""
+    def test_produce_list_urls(self, mock_inform):
+        """Test 'produce_list_urls' uses 'scraper.generate_list_urls'."""
         mock_urls = ['url1', 'url2', 'url3']
+        self.pipeline.scraper.generate_list_urls.return_value = mock_urls
 
-        self.pipeline._produce_urls(lambda: mock_urls)
+        self.pipeline.produce_list_urls()
 
+        self.pipeline.scraper.generate_list_urls.assert_called_once_with()
         for mock_url in mock_urls:
             self.pipeline.url_queue.put.assert_any_call(mock_url)
 
-        self.assertEqual(self.pipeline.urls_to_process.value, len(mock_urls))
-
     @patch('scrapemeagain.pipeline.Pipeline.inform')
-    def test_produce_urls_tuples(self, mock_inform):
-        """Test '_produce_urls' populates 'url_queue' from list of tuples."""
-        mock_urls = [('url1',), ('url2',), ('url3',)]
-
-        self.pipeline._produce_urls(lambda: mock_urls)
-
-        for mock_url in mock_urls:
-            self.pipeline.url_queue.put.assert_any_call(mock_url[0])
-
-        self.assertEqual(self.pipeline.urls_to_process.value, len(mock_urls))
-
-    @patch('scrapemeagain.pipeline.Pipeline._produce_urls')
-    def test_produce_list_urls(self, mock_produce_urls):
-        """Test 'produce_list_urls' uses 'scraper.generate_list_urls'."""
-        self.pipeline.produce_list_urls()
-
-        mock_produce_urls.assert_called_once_with(
-            self.pipeline.scraper.generate_list_urls
-        )
-
-    @patch('scrapemeagain.pipeline.Pipeline._produce_urls')
-    def test_produce_item_urlssss(self, mock_produce_urls):
+    def test_produce_item_urls(self, mock_inform):
         """Test 'produce_item_urls' uses 'databaser.get_item_urls'."""
+        mock_urls = [('url1',), ('url2',), ('url3',)]
+        self.pipeline.databaser.get_item_urls.return_value = mock_urls
+
         self.pipeline.produce_item_urls()
 
-        mock_produce_urls.assert_called_once_with(
-            self.pipeline.databaser.get_item_urls
-        )
+        self.pipeline.databaser.get_item_urls.assert_called_once_with()
+        for mock_url in mock_urls:
+            self.pipeline.url_queue.put.assert_any_call(mock_url[0])
 
     def test_classify_response_ok(self):
         """Test '_classify_response' puts an OK response to
