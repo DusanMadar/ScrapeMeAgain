@@ -65,7 +65,10 @@ class Pipeline(object):
 
         :argument message:
         :type message: str
-
+        :argument log: flag to also log the message
+        :type log: bool
+        :argument end: message line end
+        :type end: str
         """
         if log:
             logging.info(message)
@@ -97,7 +100,11 @@ class Pipeline(object):
 
     def _produce_urls_wrapper(self, producer_function):
         """Use the provided 'producer_function' to populate 'url_queue'
-        and get URLs count."""
+        and get URLs count.
+
+        :argument producer_function: how to produce URLs
+        :type producer_function: function/method
+        """
         self.producing_urls_in_progress.set()
 
         urls_count = producer_function()
@@ -135,6 +142,9 @@ class Pipeline(object):
     def _classify_response(self, response):
         """Examine response and put it to 'response_queue' if it's OK or put
         it's URL  back to 'url_queue'.
+
+        :argument response:
+        :type response: request.response
         """
         if not response.ok and response.status_code >= 408:
             self.url_queue.put(response.url)
@@ -142,7 +152,11 @@ class Pipeline(object):
             self.response_queue.put(response)
 
     def _actually_get_html(self, urls):
-        """Request provided URLs running multiple processes."""
+        """Request provided URLs running multiple processes.
+
+        :argument urls: URLs to get data from
+        :type urls: list
+        """
         try:
             self.requesting_in_progress.set()
             for response in self.pool.map(get, urls):
@@ -180,15 +194,31 @@ class Pipeline(object):
             if run:
                 self.change_ip()
 
+    def _scrape_data(self, response):
+        """Scrape HTML provided by the given response.
+
+        :argument response:
+        :type response: request.response
+
+        :returns dict
+        """
+        if self.scraper.list_url_template in response.url:
+            data = self.scraper.get_item_urls(response)
+        else:
+            data = self.scraper.get_item_properties(response)
+
+        return data
+
     def _actually_collect_data(self, response):
-        """Scrape HTML provided by a given response."""
+        """Collect data from the given response.
+
+        :argument response:
+        :type response: request.response
+        """
         try:
             self.scraping_in_progress.set()
-            if self.scraper.list_url_template in response.url:
-                data = self.scraper.get_item_urls(response)
-            else:
-                data = self.scraper.get_item_properties(response)
 
+            data = self._scrape_data(response)
             self.data_queue.put(data)
         except Exception as exc:
             logging.error(
@@ -237,7 +267,11 @@ class Pipeline(object):
         self.transaction_items += 1
 
     def _actually_store_data(self, data):
-        """Store provided data in the DB."""
+        """Store provided data in the DB.
+
+        :argument data: data to store in the DB
+        :type data: list or dict
+        """
         try:
             if isinstance(data, list):
                 self._store_item_urls(data)
