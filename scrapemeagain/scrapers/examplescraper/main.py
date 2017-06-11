@@ -4,6 +4,7 @@ from config import Config
 from scrapemeagain.databaser import Databaser
 from scrapemeagain.pipeline import Pipeline
 from scrapemeagain.scrapers.examplescraper.scraper import ExampleScraper
+from scrapemeagain.utils import services
 from scrapemeagain.utils.logger import setup_logging
 from scrapemeagain.utils.useragents import get_user_agents
 
@@ -30,11 +31,16 @@ databaser = Databaser(scraper.db_file, scraper.db_table)
 pipeline = Pipeline(scraper, databaser, tor_ip_changer)
 pipeline.prepare_multiprocessing()
 
-# Change IP before starting.
-pipeline.tor_ip_changer.get_new_ip()
+try:
+    services.start_backbone_services()
 
-# Collect item URLs.
-pipeline.get_item_urls()
+    # Change IP before starting.
+    pipeline.tor_ip_changer.get_new_ip()
 
-# Collect item properties.
-pipeline.get_item_properties()
+    # Collect item URLs.
+    pipeline.get_item_urls()
+
+    # Collect item properties.
+    pipeline.get_item_properties()
+finally:
+    services.stop_backbone_services()
