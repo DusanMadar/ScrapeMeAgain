@@ -35,7 +35,8 @@ def toggle_backbone_services(action):
             stderr=subprocess.PIPE
         )
 
-        service_action.communicate(password_manager['root_password'] + '\n')
+        service_action.communicate(
+            (password_manager['root_password'] + '\n').encode())
         service_action.wait()
 
         if service_action.returncode != 0:
