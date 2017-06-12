@@ -36,7 +36,8 @@ def toggle_backbone_services(action):
         )
 
         service_action.communicate(
-            (password_manager['root_password'] + '\n').encode())
+            (password_manager['root_password'] + '\n').encode()
+        )
         service_action.wait()
 
         if service_action.returncode != 0:
