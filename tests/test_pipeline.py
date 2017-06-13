@@ -106,8 +106,9 @@ class TestPipeline(TestPipelineBase):
             'New IP: {new_ip}'.format(new_ip='8.8.8.8')
         )
 
+    @patch('scrapemeagain.pipeline.time')
     @patch('scrapemeagain.pipeline.Pipeline.inform')
-    def test_produce_urls_wrapper(self, mock_inform):
+    def test_produce_urls_wrapper(self, mock_inform, mock_time):
         """Test '_produce_urls_wrapper' informs about URLs count and manages
         the 'producing_urls_in_progress' event.
         """
@@ -117,6 +118,7 @@ class TestPipeline(TestPipelineBase):
         mock_inform.assert_called_once_with(
             'URLs to process: {}'.format(self.pipeline.urls_to_process.value)
         )
+        mock_time.sleep.assert_called_once_with(0.1)
         self.pipeline.producing_urls_in_progress.set.assert_called_once_with()
         self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()
 
