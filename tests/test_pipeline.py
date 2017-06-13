@@ -422,6 +422,9 @@ class TestPipeline(TestPipelineBase):
 
         self.pipeline.databaser.commit.assert_called_once_with()
 
+        # check 'urls_processed' is reset before actualy storing data
+        self.assertEqual(self.pipeline.urls_processed.value, 0)
+
     @patch('scrapemeagain.pipeline.Pipeline.inform')
     def test_exit_workers(self, mock_inform):
         """Test 'exit_workers' passes an EXIT message to all queues."""

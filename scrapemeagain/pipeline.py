@@ -289,6 +289,8 @@ class Pipeline(object):
 
     def store_data(self):
         """Consume 'data_queue' and store provided data in the DB."""
+        self.urls_processed.value = 0
+
         while True:
             data = self.data_queue.get()
             if data == EXIT:
