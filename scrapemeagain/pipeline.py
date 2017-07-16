@@ -89,7 +89,7 @@ class Pipeline(object):
     def change_ip(self):
         """Change IP address.
 
-        By default, IP is chnaged after each bunch of URLs is requested.
+        By default, IP is changed after each bunch of URLs is requested.
         """
         try:
             new_ip = self.tor_ip_changer.get_new_ip()
