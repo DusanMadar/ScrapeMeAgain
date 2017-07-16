@@ -118,7 +118,7 @@ class TestPipeline(TestPipelineBase):
         mock_inform.assert_called_once_with(
             'URLs to process: {}'.format(self.pipeline.urls_to_process.value)
         )
-        mock_time.sleep.assert_called_once_with(0.1)
+        mock_time.sleep.assert_called_once_with(1)
         self.pipeline.producing_urls_in_progress.set.assert_called_once_with()
         self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()
 

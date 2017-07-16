@@ -110,7 +110,7 @@ class Pipeline(object):
         urls_count = producer_function()
 
         self.inform('URLs to process: {}'.format(urls_count))
-        time.sleep(0.1)
+        time.sleep(1)
         self.urls_to_process.value = urls_count
 
         self.producing_urls_in_progress.clear()
