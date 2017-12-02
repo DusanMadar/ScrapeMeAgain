@@ -3,5 +3,4 @@ coverage==4.4.1
 requests==2.14.2
 SQLAlchemy==1.1.9
 stem==1.5.4
--e git+https://github.com/DusanMadar/TorIpChanger@87d56b5c9985574e606c040d4c0a634b7f9726b7#egg=toripchanger-master
-wheel==0.24.0
+-e git+https://github.com/DusanMadar/TorIpChanger.git#egg=toripchanger-master
