@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, jsonify
 
 from toripchanger import TorIpChanger
@@ -6,9 +8,9 @@ from toripchanger import TorIpChanger
 app = Flask(__name__)
 
 
-# Global IP store.
-# TODO set proper `reuse_threshold`.
-ipstore = TorIpChanger()  # Use only specific `TorIpChanger` functionality.
+# Global IP store (using only specific `TorIpChanger` functionality).
+reuse_threshold = int(os.environ.get('IPSTORE_REUSE_THRESHOLD'))
+ipstore = TorIpChanger(reuse_threshold=reuse_threshold)
 
 
 @app.route('/ip-is-safe/<ip>/')

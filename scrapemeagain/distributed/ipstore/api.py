@@ -1,9 +1,9 @@
+import os
+
 from requests import get
 
 
-# TODO the master scraper (and an IP store at the same time) host (container
-# name) should be dynamic (taken from env or something).
-IPSTORE_HOST = 'scp1'
+IPSTORE_HOST = os.environ.get('IPSTORE_HOST')
 
 
 def check_ip_safeness(ip):
