@@ -1,0 +1,11 @@
+version: '2'
+
+services:
+  scp1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scp1
+    entrypoint: /scp/entrypoint.scp1.sh
+    env_file: .env.scp
+    image: scp:latest
