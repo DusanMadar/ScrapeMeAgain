@@ -8,4 +8,5 @@ services:
     container_name: scp1
     entrypoint: /scp/entrypoint.scp1.sh
     env_file: .env.scp
+    hostname: scp1
     image: scp:latest

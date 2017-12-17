@@ -32,6 +32,7 @@ def create_scraper_service(service_id):
         'depends_on': ['scp{}'.format(service_id - 1)],
         'entrypoint': '/scp/entrypoint.scpx.sh',
         'env_file': ENV_SCP,
+        'hostname': service_name,
         'image': 'scp:latest',
     }
 
