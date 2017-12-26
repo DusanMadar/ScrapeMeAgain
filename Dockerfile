@@ -20,5 +20,4 @@ RUN \
     pip3 install -r /scp/requirements.txt
 
 
-COPY . /scp
 WORKDIR /scp
