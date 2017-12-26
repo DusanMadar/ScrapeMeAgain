@@ -1,10 +1,10 @@
-import os
-
 from requests import get
 
+from scrapemeagain.distributed.config import Config
 
-IPSTORE_PORT = os.environ.get('IPSTORE_PORT')
-IPSTORE_HOST = os.environ.get('MASTER_SCRAPER')
+
+IPSTORE_PORT = Config.IPSTORE_PORT
+IPSTORE_HOST = Config.IPSTORE_HOST
 
 
 def check_ip_safeness(ip):

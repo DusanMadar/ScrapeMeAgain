@@ -1,17 +1,14 @@
-import os
-
 from flask import Flask, jsonify
-
 from toripchanger import TorIpChanger
+
+from scrapemeagain.distributed.config import Config
 
 
 app = Flask(__name__)
 
 
-scrapers = int(os.environ.get('SCRAPERS_COUNT'))
-scraper_scrape_processes = int(os.environ.get('SCRAPER_SCRAPE_PROCESSES'))
-IPSTORE_REUSE_THRESHOLD = scrapers * scraper_scrape_processes
-IPSTORE_PORT = int(os.environ.get('IPSTORE_PORT'))
+IPSTORE_REUSE_THRESHOLD = Config.REUSE_THRESHOLD
+IPSTORE_PORT = Config.IPSTORE_PORT
 # Global IP store (using only specific `TorIpChanger` functionality).
 IPSTORE = TorIpChanger(reuse_threshold=IPSTORE_REUSE_THRESHOLD)
 
