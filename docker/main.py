@@ -18,8 +18,8 @@ PARENT_DIR = os.path.dirname(CURENT_DIR)
 ENTRYPOINT_PATH_TEMPLATE = CONTAINER_SRCDIR + '/docker/entrypoint.{}.sh'
 
 
-def create_scraper_service(service_id):
-    service_name = 'scp{}'.format(service_id)
+def create_scraper_service(sraper_id):
+    service_name = 'scp{}'.format(sraper_id)
     service_settings = {
         'container_name': service_name,
         'environment': [
@@ -35,7 +35,7 @@ def create_scraper_service(service_id):
         ]
     }
 
-    if service_id == 1:
+    if sraper_id == 1:
         # Master scraper specific settings.
         entrypoint = ENTRYPOINT_PATH_TEMPLATE.format('scp1')
         service_settings['build'] = {
@@ -45,7 +45,7 @@ def create_scraper_service(service_id):
     else:
         # Worker specific settings.
         entrypoint = ENTRYPOINT_PATH_TEMPLATE.format('scpx')
-        service_settings['depends_on'] = ['scp{}'.format(service_id - 1)]
+        service_settings['depends_on'] = ['scp{}'.format(sraper_id - 1)]
 
     service_settings['entrypoint'] = entrypoint
 
