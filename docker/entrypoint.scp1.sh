@@ -1,6 +1,6 @@
 #!/bin/sh
 
-/bin/sh /scp/entrypoint.base.sh
+/bin/sh /scp/docker/entrypoint.base.sh
 
 python3 /scp/scrapemeagain/distributed/ipstore/app.py &
 
