@@ -11,7 +11,10 @@ from .alnum import DATE_FORMAT, get_current_date
 USER_AGENTS_URL = (
     'https://techblog.willshouse.com/2012/01/03/most-common-user-agents/'
 )
-USER_AGENTS_FILE = os.path.join(os.path.dirname(__file__), 'useragents.json')
+USER_AGENTS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+    'useragents.json'
+)
 
 
 def _scrape_user_agents():
