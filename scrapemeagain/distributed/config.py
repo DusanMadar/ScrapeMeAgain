@@ -1,4 +1,4 @@
-from scrapemeagain.config import Config as BaseConfig
+from config import Config as BaseConfig
 
 
 class Config(BaseConfig):
@@ -19,4 +19,8 @@ class Config(BaseConfig):
     CONTROLLER_HOST = MASTER_SCRAPER
     CONTROLLER_CLASS = (
         'scrapemeagain.scrapers.<package-name>.scraper.<class-name>'
+    )
+
+    CONTROLLER_CLASS = (
+        'scrapemeagain.scrapers.examplescraper.scraper.ExampleScraper'
     )
