@@ -16,5 +16,7 @@ def check_ip_safeness(ip):
 
     :returns bool
     """
-    url = f'http://{IPSTORE_HOST}:{IPSTORE_PORT}/ip-is-safe/{ip}/'
+    url = 'http://{host}:{port}/ip-is-safe/{ip}/'.format(
+        host=IPSTORE_HOST, port=IPSTORE_PORT, ip=ip
+    )
     return get(url).json()['safe']

@@ -4,13 +4,13 @@ from toripchanger import TorIpChanger
 from scrapemeagain.distributed.config import Config
 
 
-app = Flask(__name__)
-
-
 IPSTORE_REUSE_THRESHOLD = Config.REUSE_THRESHOLD
 IPSTORE_PORT = Config.IPSTORE_PORT
 # Global IP store (using only specific `TorIpChanger` functionality).
 IPSTORE = TorIpChanger(reuse_threshold=IPSTORE_REUSE_THRESHOLD)
+
+
+app = Flask(__name__)
 
 
 @app.route('/ip-is-safe/<ip>/')
