@@ -1,7 +1,7 @@
 import os
 
 
-class Config(object):
+class Config:
     #
     # General settings.
     # Where to place the *.sqlite DB file populated with scraped data.
