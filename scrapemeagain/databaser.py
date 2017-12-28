@@ -18,6 +18,10 @@ class Databaser(object):
         :type db_file: str
 
         """
+        # Ensure data dir exists.
+        if not os.path.exists(Config.DATA_DIRECTORY):
+            os.makedirs(Config.DATA_DIRECTORY)
+
         self.db_file = os.path.join(Config.DATA_DIRECTORY, db_file) + '.sqlite'
         if not os.path.exists(self.db_file):
             with open(self.db_file, 'w'):

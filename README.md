@@ -2,6 +2,12 @@
 
 ScrapeMeAgain is a Python 3 powered web scraper. It uses multiprocessing to get the work done quicker and stores collected data in an [SQLite](http://www.sqlite.org/) database.
 
+## Docker support
+
+I have started to 'dockerize' the scraper. Work still in progress - checkout branch [dockerized](https://github.com/DusanMadar/ScrapeMeAgain/tree/dockerized) for more (interin - things may change!) details.
+
+The idea is to run one scrapere instance per container (with a single master scraper). This way it will be possible to use multiple Tor IPs at the same time and, unless you abuse it, scrape data faster.
+
 ## System requirements
 ScrapeMeAgain leverages `Tor` and `Privoxy`.
 
