@@ -23,3 +23,6 @@ RUN \
     pip3 install -r $SRCDIR/requirements.txt
 
 WORKDIR $SRCDIR
+
+# The line belows adds postgres support and another 120 mb to the image size.
+# RUN apk add --update --no-cache gcc musl-dev postgresql-dev
