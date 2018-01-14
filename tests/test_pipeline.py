@@ -321,7 +321,7 @@ class TestPipeline(TestPipelineBase):
         self.assertEqual(mock_actually_collect_data.call_count, 3)
 
     def test_store_item_urls(self):
-        """Test '_store_item_urls' stores itm URLs to DB."""
+        """Test '_store_item_urls' stores item URLs to DB."""
         mock_data = [{'url': 'url1'}, {'url': 'url2'}]
 
         self.pipeline._store_item_urls(mock_data)
@@ -329,14 +329,12 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.databaser.insert_multiple.assert_called_once_with(
             mock_data, self.pipeline.databaser.item_urls_table
         )
-        self.assertEqual(self.pipeline.transaction_items, len(mock_data))
 
     def test_store_item_urls_empty(self):
         """Test '_store_item_urls' only stores actual item URLs."""
         self.pipeline._store_item_urls([])
 
         self.assertEqual(self.pipeline.databaser.insert_multiple.call_count, 0)
-        self.assertEqual(self.pipeline.transaction_items, 0)
 
     def test_store_item_properties(self):
         """Test '_store_item_properties' saves item properties to DB."""
@@ -350,7 +348,6 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.databaser.delete_url.assert_called_once_with(
             mock_data['url']
         )
-        self.assertEqual(self.pipeline.transaction_items, 2)
 
     def test_store_item_properties_empty(self):
         """Test '_store_item_properties' does not store the item and only
@@ -364,7 +361,6 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.databaser.delete_url.assert_called_once_with(
             mock_data['url']
         )
-        self.assertEqual(self.pipeline.transaction_items, 1)
 
     @patch('scrapemeagain.pipeline.Pipeline._store_item_urls')
     @patch('scrapemeagain.pipeline.Pipeline._store_item_properties')
@@ -387,16 +383,11 @@ class TestPipeline(TestPipelineBase):
     def test_actually_store_data_commits(
         self, mock_store_item_properties, mock_store_item_urls
     ):
-        """Test '_actually_store_data' commits changes after a threshold is
-        reached and resets the counter.
+        """Test '_actually_store_data' commits changes on exit.
         """
-        self.pipeline.transaction_items = 2
-        self.pipeline.transaction_items_max = 1
-
-        self.pipeline._actually_store_data(None)
+        self.pipeline._actually_store_data(EXIT)
 
         self.pipeline.databaser.commit.assert_called_once_with()
-        self.assertEqual(self.pipeline.transaction_items, 0)
 
     @patch('scrapemeagain.pipeline.logging')
     def test_actually_store_data_fails(self, mock_logging):
@@ -421,8 +412,7 @@ class TestPipeline(TestPipelineBase):
 
         # 3 = len(mock_data) + EXIT
         self.assertEqual(self.pipeline.data_queue.get.call_count, 3)
-
-        self.pipeline.databaser.commit.assert_called_once_with()
+        self.assertEqual(self.pipeline._actually_store_data.call_count, 3)
 
         # check 'urls_processed' is reset before actualy storing data
         self.assertEqual(self.pipeline.urls_processed.value, 0)

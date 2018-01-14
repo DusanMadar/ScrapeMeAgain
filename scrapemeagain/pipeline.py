@@ -39,9 +39,6 @@ class Pipeline(object):
 
         self.scrape_processes = Config.SCRAPE_PROCESSES
 
-        self.transaction_items = 0
-        self.transaction_items_max = Config.TRANSACTION_SIZE
-
         self.workers = []
 
     def prepare_multiprocessing(self):
@@ -249,7 +246,6 @@ class Pipeline(object):
             return
 
         self.databaser.insert_multiple(data, self.databaser.item_urls_table)
-        self.transaction_items += len(data)
 
     def _store_item_properties(self, data):
         """Handle storing item properties.
@@ -261,27 +257,24 @@ class Pipeline(object):
             # NOTE: if there is only a single item in the data dict (the URL),
             # there is no point in storing it.
             self.databaser.insert(data, self.databaser.item_data_table)
-            self.transaction_items += 1
 
         # Remove processed item URL.
         self.databaser.delete_url(data['url'])
-        self.transaction_items += 1
 
     def _actually_store_data(self, data):
         """Store provided data in the DB.
 
         :argument data: data to store in the DB
-        :type data: list or dict
+        :type data: str or list or dict
         """
         try:
-            if isinstance(data, list):
+            if data == EXIT:
+                self.databaser.commit()
+                return
+            elif isinstance(data, list):
                 self._store_item_urls(data)
             else:
                 self._store_item_properties(data)
-
-            if self.transaction_items > self.transaction_items_max:
-                self.databaser.commit()
-                self.transaction_items = 0
         except Exception as exc:
             logging.error('Failed storing data')
             logging.exception(exc)
@@ -294,12 +287,11 @@ class Pipeline(object):
 
         while True:
             data = self.data_queue.get()
-            if data == EXIT:
-                break
 
             self._actually_store_data(data)
 
-        self.databaser.commit()
+            if data == EXIT:
+                break
 
     def exit_workers(self):
         """Exit workers started as separate processes by passing an EXIT

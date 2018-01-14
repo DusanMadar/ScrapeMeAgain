@@ -37,6 +37,9 @@ class Databaser(object):
 
         self.create_tables()
 
+        self.transaction_items = 0
+        self.transaction_items_max = Config.TRANSACTION_SIZE
+
     def create_tables(self):
         """Create tables."""
         self.item_urls_table.__table__.create(self.engine, checkfirst=True)
@@ -46,6 +49,7 @@ class Databaser(object):
         """Commit changes."""
         try:
             self.session.commit()
+            self.transaction_items = 0
             logging.info('Changes successfully committed')
         except Exception as exc:
             logging.error('Failed to commit changes, rolling back ...')
@@ -65,8 +69,11 @@ class Databaser(object):
         for key, value in data.items():
             setattr(row, key, value)
 
-        print(row)
         self.session.add(row)
+
+        self.transaction_items += 1
+        if self.transaction_items > self.transaction_items_max:
+            self.databaser.commit()
 
     def insert_multiple(self, data, table):
         """Insert multiple.
@@ -94,6 +101,8 @@ class Databaser(object):
         ).filter(
             self.item_urls_table.url == url
         ).delete()
+
+        self.transaction_items += 1
 
     def _remove_duplicate_item_urls(self):
         """Remove duplicate item URLs."""
