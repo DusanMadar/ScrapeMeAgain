@@ -1,0 +1,43 @@
+from scrapemeagain.config import Config
+from scrapemeagain.dockerized.ipchanger import DockerizedTorIpChanger
+from scrapemeagain.dockerized.utils import apply_scraper_config
+from scrapemeagain.pipeline import Pipeline
+from scrapemeagain.scrapers.examplescraper.databaser import DockerizedDatabaser
+from scrapemeagain.scrapers.examplescraper.scraper import (
+    DockerizedExampleScraper,
+)
+from scrapemeagain.utils.logger import setup_logging
+from scrapemeagain.utils.useragents import get_user_agents
+
+
+# Update config, setup logging and useragents.
+apply_scraper_config()
+setup_logging(logger_name='examplescraper')
+Config.USER_AGENTS = get_user_agents()
+
+
+# Configure DockerizedTorIpChanger.
+tor_ip_changer = DockerizedTorIpChanger(
+    local_http_proxy=Config.LOCAL_HTTP_PROXY,
+    tor_password=Config.TOR_PASSWORD,
+    tor_port=Config.TOR_PORT,
+    new_ip_max_attempts=Config.NEW_IP_MAX_ATTEMPTS
+)
+
+
+# Prepare the scraping pipeline.
+scraper = DockerizedExampleScraper()
+databaser = DockerizedDatabaser(scraper.db_file)
+pipeline = Pipeline(scraper, databaser, tor_ip_changer)
+pipeline.prepare_multiprocessing()
+
+
+if __name__ == '__main__':
+    # Change IP before starting.
+    pipeline.tor_ip_changer.get_new_ip()
+
+    # Collect item URLs.
+    pipeline.get_item_urls()
+
+    # Collect item properties.
+    pipeline.get_item_properties()

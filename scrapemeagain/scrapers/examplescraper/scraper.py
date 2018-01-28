@@ -1,7 +1,11 @@
 from bs4 import BeautifulSoup
 
-from .model import ExampleDataTable
+from scrapemeagain.dockerized.urlbroker import (
+    api as urlbroker_api,
+    urlbrokers,
+)
 from scrapemeagain.scrapers.basescraper import BaseScraper
+from scrapemeagain.scrapers.examplescraper.model import ExampleDataTable
 
 
 URL_QUERY = '/url?q='
@@ -14,11 +18,13 @@ class ExampleScraper(BaseScraper):
     db_file = 'example'
     db_table = ExampleDataTable
 
+    def _format_list_url(self, index):
+        return self.base_url + self.list_url_template + str(index)
+
     def generate_list_urls(self):
         list_count = self.get_lists_count()
 
-        list_url = self.base_url + self.list_url_template
-        return (list_url + str(i) for i in range(0, list_count, 10))
+        return (self._format_list_url(i) for i in range(0, list_count, 10))
 
     def get_lists_count(self):
         # We only want first 10 lists.
@@ -57,3 +63,21 @@ class ExampleScraper(BaseScraper):
             properties['h1'] = headers[0].text
 
         return properties
+
+
+class DockerizedExampleScraper(ExampleScraper):
+    def generate_list_urls(self):
+        start, stop = urlbroker_api.get_list_urls_range()
+
+        catalog_urls = (
+            self._format_list_url(i)
+            for i in range(start, stop, -1)
+        )
+
+        return catalog_urls
+
+
+class ListUrlsBroker(urlbrokers.ListUrlsBroker):
+    def __init__(self):
+        scraper = ExampleScraper()
+        super().__init__(scraper)

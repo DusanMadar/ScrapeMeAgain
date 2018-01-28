@@ -7,7 +7,7 @@ import os
 import requests
 
 from scrapemeagain.config import Config
-from .alnum import get_current_date
+from scrapemeagain.utils.alnum import get_current_date
 
 
 def setup_logging(logger_name):
