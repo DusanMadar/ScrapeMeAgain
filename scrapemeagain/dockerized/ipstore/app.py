@@ -1,15 +1,15 @@
 from flask import jsonify
 from toripchanger import TorIpChanger
 
-from config import Config
+from scrapemeagain.config import Config
 from scrapemeagain.dockerized.utils import app_factory
+
+
+app = app_factory(__name__)
 
 
 # Global IP store (using only specific `TorIpChanger` functionality).
 IPSTORE = TorIpChanger(reuse_threshold=Config.IPSTORE_REUSE_THRESHOLD)
-
-
-app = app_factory(__name__)
 
 
 @app.route('/ip-is-safe/<ip>/')

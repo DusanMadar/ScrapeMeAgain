@@ -6,7 +6,7 @@ from random import sample
 
 import requests
 
-from config import Config
+from scrapemeagain.config import Config
 
 
 RESPONSE_LOG_MESSAGE = '{status} - {url}'

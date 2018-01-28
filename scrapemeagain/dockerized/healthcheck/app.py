@@ -1,4 +1,4 @@
-from config import Config
+from scrapemeagain.config import Config
 from scrapemeagain.dockerized.utils import app_factory
 
 

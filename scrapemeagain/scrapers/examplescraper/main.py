@@ -1,6 +1,6 @@
 from toripchanger import TorIpChanger
 
-from config import Config
+from scrapemeagain.config import Config
 from scrapemeagain.databaser import Databaser
 from scrapemeagain.pipeline import Pipeline
 from scrapemeagain.scrapers.examplescraper.scraper import ExampleScraper

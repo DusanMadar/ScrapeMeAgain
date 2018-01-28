@@ -5,16 +5,16 @@ import logging
 from multiprocessing import Event, Pool, Process, Queue, Value
 import time
 
-from config import Config
-from .utils.alnum import get_current_datetime
-from .utils.http import get
+from scrapemeagain.config import Config
+from scrapemeagain.utils.alnum import get_current_datetime
+from scrapemeagain.utils.http import get
 
 
 EXIT = '__exit__'
 DUMP_URLS_BUCKET = '__dump_urls_bucket__'
 
 
-class Pipeline(object):
+class Pipeline:
     def __init__(self, scraper, databaser, tor_ip_changer):
         """Webscraping pipeline.
 
@@ -112,11 +112,14 @@ class Pipeline(object):
 
         self.producing_urls_in_progress.clear()
 
+    def _actually_produce_list_urls(self):
+        return self.scraper.generate_list_urls()
+
     def produce_list_urls(self):
         """Populate 'url_queue' with generated list URLs."""
         def producer_function():
             urls_count = 0
-            for list_url in self.scraper.generate_list_urls():
+            for list_url in self._actually_produce_list_urls():
                 self.url_queue.put(list_url)
                 urls_count += 1
 
@@ -124,11 +127,14 @@ class Pipeline(object):
 
         self._produce_urls_wrapper(producer_function)
 
+    def _actually_produce_item_urls(self):
+        return self.databaser.get_item_urls()
+
     def produce_item_urls(self):
         """Populate 'url_queue' with loaded item URLs."""
         def producer_function():
             urls_count = 0
-            for item_url in self.databaser.get_item_urls():
+            for item_url in self._actually_produce_item_urls():
                 # Pick the URL from SQLAlchemy ResultProxy.
                 self.url_queue.put(item_url[0])
                 urls_count += 1
@@ -172,7 +178,6 @@ class Pipeline(object):
         while run:
             urls_bucket = []
             self.urls_bucket_empty.value = 1
-
             for _ in range(0, self.scrape_processes):
                 url = self.url_queue.get()
 
@@ -217,7 +222,8 @@ class Pipeline(object):
             self.scraping_in_progress.set()
 
             data = self._scrape_data(response)
-            self.data_queue.put(data)
+            if data:
+                self.data_queue.put(data)
         except Exception as exc:
             logging.error(
                 'Failed processing response for "{}"'.format(response.url)
@@ -268,10 +274,7 @@ class Pipeline(object):
         :type data: str or list or dict
         """
         try:
-            if data == EXIT:
-                self.databaser.commit()
-                return
-            elif isinstance(data, list):
+            if isinstance(data, list):
                 self._store_item_urls(data)
             else:
                 self._store_item_properties(data)
@@ -288,10 +291,12 @@ class Pipeline(object):
         while True:
             data = self.data_queue.get()
 
-            self._actually_store_data(data)
-
             if data == EXIT:
                 break
+
+            self._actually_store_data(data)
+
+        self.databaser.commit()
 
     def exit_workers(self):
         """Exit workers started as separate processes by passing an EXIT

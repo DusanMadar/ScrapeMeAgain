@@ -1,4 +1,4 @@
-from config import Config
+from scrapemeagain.config import Config
 
 
 class UrlsRangeManager:
@@ -45,15 +45,3 @@ class ListUrlsBroker(UrlsRangeManager):
 
     def get_urls_count(self):
         return self.scraper.get_lists_count()
-
-
-class ItemUrlsBroker(UrlsRangeManager):
-    def __init__(self, databaser):
-        super().__init__(descending=False)
-
-        self.databaser = databaser
-
-    def get_urls_count(self):
-        return self.databaser.session.query(
-            self.databaser.item_urls_table.url
-        ).count()

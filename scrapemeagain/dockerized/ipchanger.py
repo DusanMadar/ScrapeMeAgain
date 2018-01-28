@@ -3,7 +3,7 @@ from toripchanger import TorIpChanger
 from scrapemeagain.dockerized.ipstore.api import check_ip_safeness
 
 
-class NetTorIpChanger(TorIpChanger):
+class DockerizedTorIpChanger(TorIpChanger):
     def _ip_is_safe(self, current_ip):
         return check_ip_safeness(current_ip)
 

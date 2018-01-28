@@ -6,7 +6,7 @@ import os
 
 import requests
 
-from config import Config
+from scrapemeagain.config import Config
 from .alnum import get_current_date
 
 

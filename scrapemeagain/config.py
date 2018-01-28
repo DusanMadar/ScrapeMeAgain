@@ -6,7 +6,7 @@ class Config:
 
     # Log level settings.
     # NOTE 'DEBUG' will be very verbose.
-    LOG_LEVEL = 'WARNING'
+    LOG_LEVEL = 'DEBUG'
 
     # How often data (how many items at once) should be commited to the DB.
     TRANSACTION_SIZE = 5000
@@ -14,7 +14,7 @@ class Config:
     #
     # Scraping settings.
     # Number of processes used to asynchronously scrape data from URLs.
-    SCRAPE_PROCESSES = 5
+    SCRAPE_PROCESSES = 50
 
     # How long to wait for a response (in seconds).
     REQUEST_TIMEOUT = 10
@@ -49,7 +49,7 @@ class Config:
 
     #
     # Orchestration.
-    SCRAPERS_COUNT = 2
+    SCRAPERS_COUNT = 1
     MASTER_SCRAPER = 'scp1'
 
     #
@@ -62,8 +62,21 @@ class Config:
     # URLBroker.
     URLBROKER_PORT = 6000
     URLBROKER_HOST = MASTER_SCRAPER
+    # NOTE each scraper MUST set a custom `ListUrlsBroker` subclass in
+    # 'scrapemeagain.scrapers.{your scraper}.setings.URLBROKER_CLASS'
+    URLBROKER_CLASS = (
+        'scrapemeagain.dockerized.urlbroker.urlbrokers.ListUrlsBroker'
+    )
+
+    #
+    # DataStore.
+    DATASTORE_PORT = 7000
+    DATASTORE_HOST = MASTER_SCRAPER
+    # NOTE set 'scrapemeagain.scrapers.{your scraper}.setings.DATASTORE_CLASS'
+    # if your scraper adds custom functionality to `DataStoreDatabaser`.
+    DATASTORE_DATABASER_CLASS = 'scrapemeagain.databaser.DataStoreDatabaser'
 
     #
     # Healthcheck.
-    HEALTHCHECK_PORT = 7000
+    HEALTHCHECK_PORT = 8000
     HEALTHCHECK_HOST = MASTER_SCRAPER

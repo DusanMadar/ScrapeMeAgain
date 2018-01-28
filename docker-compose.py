@@ -2,11 +2,11 @@
 Dynamic `docker-compose.yml` based on settings defined in `config`.
 
 Usage:
-    `python3 docker/docker-compose.py <scraper> | docker-compose -f - up`
+    `python3 docker-compose.py <scraper> | docker-compose -f - up`
 
     Example:
     $ cd scrapemeagain
-    $ python3 docker/docker-compose.py examplescraper | docker-compose -f - up
+    $ python3 docker-compose.py examplescraper | docker-compose -f - up
 """
 
 import os
@@ -14,14 +14,16 @@ import sys
 
 import yaml
 
-from config import Config
+from scrapemeagain.config import Config
+from scrapemeagain.dockerized.utils import apply_scraper_config
 
 
 CONTAINER_SRCDIR = '/scp'  # Must match `SRCDIR` env variable in Dockerfile.
 CURENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PARENT_DIR = os.path.dirname(CURENT_DIR)
 
-ENTRYPOINT_PATH_TEMPLATE = CONTAINER_SRCDIR + '/docker/entrypoint.{}.sh'
+ENTRYPOINT_PATH_TEMPLATE = (
+    CONTAINER_SRCDIR + '/scrapemeagain/dockerized/entrypoint.{}.sh'
+)
 
 
 def create_scraper_service(sraper_id, scraper_package):
@@ -41,6 +43,9 @@ def create_scraper_service(sraper_id, scraper_package):
             'URLBROKER_PORT={}'.format(Config.URLBROKER_PORT),
             'URLBROKER_HOST={}'.format(Config.URLBROKER_HOST),
 
+            'DATASTORE_PORT={}'.format(Config.DATASTORE_PORT),
+            'DATASTORE_HOST={}'.format(Config.DATASTORE_HOST),
+
             'HEALTHCHECK_PORT={}'.format(Config.HEALTHCHECK_PORT),
             'HEALTHCHECK_HOST={}'.format(Config.HEALTHCHECK_HOST),
 
@@ -49,7 +54,7 @@ def create_scraper_service(sraper_id, scraper_package):
         'hostname': service_name,
         'image': 'scp:latest',
         'volumes': [
-            '{}:{}'.format(PARENT_DIR, CONTAINER_SRCDIR),
+            '{}:{}'.format(CURENT_DIR, CONTAINER_SRCDIR),
         ]
     }
 
@@ -57,8 +62,8 @@ def create_scraper_service(sraper_id, scraper_package):
         # Master scraper specific settings.
         entrypoint = ENTRYPOINT_PATH_TEMPLATE.format('scp1')
         service_settings['build'] = {
-            'context': PARENT_DIR,
-            'dockerfile': os.path.join(PARENT_DIR, 'Dockerfile')
+            'context': CURENT_DIR,
+            'dockerfile': os.path.join(CURENT_DIR, 'Dockerfile')
         }
     else:
         # Worker specific settings.
@@ -75,6 +80,9 @@ if __name__ == '__main__':
         scraper_package = sys.argv[1]
     except IndexError:
         sys.exit('Please provide a scraper name to {}'.format(__file__))
+
+    # Apply scraper specific config.
+    apply_scraper_config(scraper_package)
 
     docker_compose = {
         'version': '3',

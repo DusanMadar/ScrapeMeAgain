@@ -1,6 +1,6 @@
 from requests import get
 
-from config import Config
+from scrapemeagain.config import Config
 
 
 def check_ip_safeness(ip):

@@ -1,6 +1,6 @@
 from toripchanger import TorIpChanger
 
-from config import Config
+from scrapemeagain.config import Config
 from scrapemeagain.databaser import Databaser
 from scrapemeagain.scrapers.examplescraper2.custom_pipeline import ExhaustApiLimitPipeLine  # noqa
 from scrapemeagain.scrapers.examplescraper2.scraper import ExampleScraper2
