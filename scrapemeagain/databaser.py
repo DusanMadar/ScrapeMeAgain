@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from scrapemeagain.config import Config
-from scrapemeagain.dockerized.datastore import api as datastore_api
+from scrapemeagain.dockerized.apps.datastore import api as datastore_api
 from scrapemeagain.scrapers.basemodel import ItemUrlsTable
 
 

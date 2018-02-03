@@ -12,14 +12,14 @@ set -e
 python3 -c 'from scrapemeagain.utils.useragents import get_user_agents; get_user_agents()'
 
 # Wait for each sub-service to start before starting anotherone.
-python3 /scp/scrapemeagain/dockerized/ipstore/app.py &
-python3 /scp/scrapemeagain/dockerized/healthcheck/test.py $IPSTORE_HOST $IPSTORE_PORT
-python3 /scp/scrapemeagain/dockerized/urlbroker/app.py &
-python3 /scp/scrapemeagain/dockerized/healthcheck/test.py $URLBROKER_HOST $URLBROKER_PORT
-python3 /scp/scrapemeagain/dockerized/datastore/app.py &
-python3 /scp/scrapemeagain/dockerized/healthcheck/test.py $DATASTORE_HOST $DATASTORE_PORT
-python3 /scp/scrapemeagain/dockerized/healthcheck/app.py &
-python3 /scp/scrapemeagain/dockerized/healthcheck/test.py $HEALTHCHECK_HOST $HEALTHCHECK_PORT
+python3 /scp/scrapemeagain/dockerized/apps/ipstore/app.py &
+python3 /scp/scrapemeagain/dockerized/apps/healthcheck/test.py $IPSTORE_HOST $IPSTORE_PORT
+python3 /scp/scrapemeagain/dockerized/apps/urlbroker/app.py &
+python3 /scp/scrapemeagain/dockerized/apps/healthcheck/test.py $URLBROKER_HOST $URLBROKER_PORT
+python3 /scp/scrapemeagain/dockerized/apps/datastore/app.py &
+python3 /scp/scrapemeagain/dockerized/apps/healthcheck/test.py $DATASTORE_HOST $DATASTORE_PORT
+python3 /scp/scrapemeagain/dockerized/apps/healthcheck/app.py &
+python3 /scp/scrapemeagain/dockerized/apps/healthcheck/test.py $HEALTHCHECK_HOST $HEALTHCHECK_PORT
 
 # NOTE use `python3 -u <file>` to unbuffer stdout and stderr, e.g. for debugging.
 python3 -u /scp/scrapemeagain/scrapers/$SCRAPER_PACKAGE/main_dockerized.py

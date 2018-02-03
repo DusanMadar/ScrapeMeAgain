@@ -4,7 +4,7 @@
 set -e
 
 # Wait till the master scraper is up and running.
-python3 /scp/scrapemeagain/dockerized/healthcheck/test.py $HEALTHCHECK_HOST $HEALTHCHECK_PORT
+python3 /scp/scrapemeagain/dockerized/apps/healthcheck/test.py $HEALTHCHECK_HOST $HEALTHCHECK_PORT
 /bin/sh /scp/scrapemeagain/dockerized/entrypoints/entrypoint.base.sh
 
 python3 -u /scp/scrapemeagain/scrapers/$SCRAPER_PACKAGE/main_dockerized.py
