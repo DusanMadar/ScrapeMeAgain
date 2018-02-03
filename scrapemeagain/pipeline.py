@@ -416,3 +416,10 @@ class Pipeline:
         self.get_html()
 
         self.release_workers()
+
+
+class DockerizedPipeline(Pipeline):
+    def inform(self, message, log=True, **kwargs):
+        # Prevent using `end = '\r'` as that way docker-compose won't show all
+        # messages.
+        super().inform(message, log=log, end='\n')

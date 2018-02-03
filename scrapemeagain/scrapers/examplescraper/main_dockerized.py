@@ -1,7 +1,7 @@
 from scrapemeagain.config import Config
 from scrapemeagain.dockerized.ipchanger import DockerizedTorIpChanger
 from scrapemeagain.dockerized.utils import apply_scraper_config
-from scrapemeagain.pipeline import Pipeline
+from scrapemeagain.pipeline import DockerizedPipeline
 from scrapemeagain.scrapers.examplescraper.databaser import DockerizedDatabaser
 from scrapemeagain.scrapers.examplescraper.scraper import (
     DockerizedExampleScraper,
@@ -28,7 +28,7 @@ tor_ip_changer = DockerizedTorIpChanger(
 # Prepare the scraping pipeline.
 scraper = DockerizedExampleScraper()
 databaser = DockerizedDatabaser(scraper.db_file)
-pipeline = Pipeline(scraper, databaser, tor_ip_changer)
+pipeline = DockerizedPipeline(scraper, databaser, tor_ip_changer)
 pipeline.prepare_multiprocessing()
 
 

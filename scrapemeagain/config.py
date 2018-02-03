@@ -6,7 +6,7 @@ class Config:
 
     # Log level settings.
     # NOTE 'DEBUG' will be very verbose.
-    LOG_LEVEL = 'DEBUG'
+    LOG_LEVEL = 'WARNING'
 
     # How often data (how many items at once) should be commited to the DB.
     TRANSACTION_SIZE = 5000
