@@ -6,7 +6,7 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-/bin/sh /scp/scrapemeagain/dockerized/entrypoint.base.sh
+/bin/sh /scp/scrapemeagain/dockerized/entrypoints/entrypoint.base.sh
 
 # Ensure `useragents.json` is ready.
 python3 -c 'from scrapemeagain.utils.useragents import get_user_agents; get_user_agents()'

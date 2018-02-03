@@ -22,7 +22,7 @@ CONTAINER_SRCDIR = '/scp'  # Must match `SRCDIR` env variable in Dockerfile.
 CURENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 ENTRYPOINT_PATH_TEMPLATE = (
-    CONTAINER_SRCDIR + '/scrapemeagain/dockerized/entrypoint.{}.sh'
+    CONTAINER_SRCDIR + '/scrapemeagain/dockerized/entrypoints/entrypoint.{}.sh'
 )
 
 
