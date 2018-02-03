@@ -18,7 +18,7 @@ The easiest way to start is to duplicate `scrapemeagain/scrapers/examplescraper`
 
 Your scraper must define `config.py` and `main_dockerized.py`. These two names are hardcoded throughout the codebase. 
 
-A dynamic `docker-compose` is responsible for orchestrating scraper instances. The idea is that the first scraper (`scp1`) is a `master` scraper and and hence is the host for a couple of helper services which communicate over HTTP (see [`dockerized/apps`](https://github.com/DusanMadar/ScrapeMeAgain/tree/master/scrapemeagain/dockerized/apps)).
+A dynamic `docker-compose` is responsible for orchestrating scraper instances. The idea is that the first scraper (`scp1`) is a `master` scraper and hence is the host for a couple of helper services which communicate over HTTP (see [`dockerized/apps`](https://github.com/DusanMadar/ScrapeMeAgain/tree/master/scrapemeagain/dockerized/apps)).
 
 Use `python3 docker-compose.py examplescraper | docker-compose -f - up --build` to run the dockerized `examplescraper`.
 
