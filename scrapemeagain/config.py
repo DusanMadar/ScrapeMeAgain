@@ -63,16 +63,16 @@ class Config:
     URLBROKER_PORT = 6000
     URLBROKER_HOST = MASTER_SCRAPER
     # NOTE each scraper MUST set a custom `ListUrlsBroker` subclass in
-    # 'scrapemeagain.scrapers.{your scraper}.setings.URLBROKER_CLASS'
+    # 'scrapemeagain.scrapers.{your scraper}.config.URLBROKER_CLASS'
     URLBROKER_CLASS = (
-        'scrapemeagain.dockerized.urlbroker.urlbrokers.ListUrlsBroker'
+        'scrapemeagain.dockerized.apps.urlbroker.urlbrokers.ListUrlsBroker'
     )
 
     #
     # DataStore.
     DATASTORE_PORT = 7000
     DATASTORE_HOST = MASTER_SCRAPER
-    # NOTE set 'scrapemeagain.scrapers.{your scraper}.setings.DATASTORE_CLASS'
+    # NOTE set 'scrapemeagain.scrapers.{your scraper}.config.DATASTORE_CLASS'
     # if your scraper adds custom functionality to `DataStoreDatabaser`.
     DATASTORE_DATABASER_CLASS = 'scrapemeagain.databaser.DataStoreDatabaser'
 

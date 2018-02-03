@@ -1,7 +1,8 @@
 from flask import jsonify
 
 from scrapemeagain.config import Config
-from scrapemeagain.dockerized.utils import app_factory, get_class_from_path
+from scrapemeagain.dockerized.apps.utils import app_factory
+from scrapemeagain.dockerized.utils import get_class_from_path
 
 
 app = app_factory(__name__)

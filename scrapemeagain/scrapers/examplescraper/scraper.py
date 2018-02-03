@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 
-from scrapemeagain.dockerized.urlbroker import (
+from scrapemeagain.dockerized.apps.urlbroker import (
     api as urlbroker_api,
     urlbrokers,
 )
