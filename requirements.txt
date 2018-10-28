@@ -1,8 +1,7 @@
-beautifulsoup4==4.6.0
-coverage==4.4.1
-requests==2.14.2
-SQLAlchemy==1.1.9
-stem==1.5.4
-Flask==0.12.2
--e git+https://github.com/DusanMadar/TorIpChanger.git#egg=toripchanger-master
-PyYAML==3.12
+beautifulsoup4
+requests
+SQLAlchemy
+stem
+Flask
+toripchanger
+PyYAML
