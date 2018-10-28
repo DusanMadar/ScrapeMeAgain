@@ -1,6 +1,6 @@
 from toripchanger import TorIpChanger
 
-from scrapemeagain.dockerized.apps.ipstore.api import check_ip_safeness
+from scrapemeagain.dockerized.apps.ipstore.client import check_ip_safeness
 
 
 class DockerizedTorIpChanger(TorIpChanger):

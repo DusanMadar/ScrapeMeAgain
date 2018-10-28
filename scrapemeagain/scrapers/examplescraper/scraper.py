@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 
 from scrapemeagain.dockerized.apps.urlbroker import (
-    api as urlbroker_api,
+    client as urlbroker_client,
     urlbrokers,
 )
 from scrapemeagain.scrapers.basescraper import BaseScraper
@@ -65,7 +65,7 @@ class ExampleScraper(BaseScraper):
 
 class DockerizedExampleScraper(ExampleScraper):
     def generate_list_urls(self):
-        start, stop = urlbroker_api.get_list_urls_range()
+        start, stop = urlbroker_client.get_list_urls_range()
 
         catalog_urls = (
             self._format_list_url(i) for i in range(start, stop, -1)
