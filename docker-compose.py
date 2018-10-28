@@ -67,12 +67,7 @@ def create_scraper_service(sraper_id, scraper_package):
     return {service_name: service_settings}
 
 
-if __name__ == "__main__":
-    try:
-        scraper_package = sys.argv[1]
-    except IndexError:
-        sys.exit("Please provide a scraper name to {}".format(__file__))
-
+def construct_compose_dict(scraper_package):
     # Apply scraper specific config.
     apply_scraper_config(scraper_package)
 
@@ -85,4 +80,13 @@ if __name__ == "__main__":
             create_scraper_service(sraper_id, scraper_package)
         )
 
-    print(yaml.dump(docker_compose))
+    return docker_compose
+
+
+if __name__ == "__main__":
+    try:
+        scraper_package = sys.argv[1]
+    except IndexError:
+        sys.exit("Please provide a scraper name to {}".format(__file__))
+
+    print(yaml.dump(construct_compose_dict(scraper_package)))
