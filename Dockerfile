@@ -12,7 +12,7 @@ RUN \
         python3 \
         python3-dev \
         git \
-        openssl
+        libressl
 
 COPY requirements.txt $SRCDIR/requirements.txt
 
