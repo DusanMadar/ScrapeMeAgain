@@ -43,9 +43,9 @@ class ExhaustApiLimitPipeLine(Pipeline):
         JSON and the IP is changed if the status is `QUERY_LIMIT_EXHAUSTED`.
         """
         data = response.json()
-        status = data['status']
+        status = data["status"]
 
-        if status == 'QUERY_LIMIT_EXHAUSTED':
+        if status == "QUERY_LIMIT_EXHAUSTED":
             if not self.change_ip_now.is_set():
                 self.change_ip_now.set()
 
@@ -67,13 +67,13 @@ class ExhaustApiLimitPipeLine(Pipeline):
         """
         # A dummy example of response processing.
         url, data = response
-        target_data = data.get('target_data')
+        target_data = data.get("target_data")
 
         if target_data is None:
             return
 
         # Add URL so it can be removed from DB and not scraped again.
-        target_data['url'] = url
+        target_data["url"] = url
         return target_data
 
     def _store_item_properties(self, data):

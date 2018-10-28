@@ -10,8 +10,8 @@ from scrapemeagain.utils.alnum import get_current_datetime
 from scrapemeagain.utils.http import get
 
 
-EXIT = '__exit__'
-DUMP_URLS_BUCKET = '__dump_urls_bucket__'
+EXIT = "__exit__"
+DUMP_URLS_BUCKET = "__dump_urls_bucket__"
 
 
 class Pipeline:
@@ -53,11 +53,11 @@ class Pipeline:
         self.requesting_in_progress = Event()
         self.scraping_in_progress = Event()
 
-        self.urls_to_process = Value('i', 0)
-        self.urls_processed = Value('i', 0)
-        self.urls_bucket_empty = Value('i', 1)
+        self.urls_to_process = Value("i", 0)
+        self.urls_processed = Value("i", 0)
+        self.urls_bucket_empty = Value("i", 1)
 
-    def inform(self, message, log=True, end='\n'):
+    def inform(self, message, log=True, end="\n"):
         """Print and if set log a message.
 
         :argument message:
@@ -70,16 +70,16 @@ class Pipeline:
         if log:
             logging.info(message)
 
-        print('{0} {1}'.format(get_current_datetime(), message), end=end)
+        print("{0} {1}".format(get_current_datetime(), message), end=end)
 
     def _inform_progress(self):
         """Print a message about how the scraping is progressing."""
         try:
-            message = 'Processed {0} ({1:.2f}%) URLs'.format(
+            message = "Processed {0} ({1:.2f}%) URLs".format(
                 self.urls_processed.value,
-                self.urls_processed.value / self.urls_to_process.value * 100
+                self.urls_processed.value / self.urls_to_process.value * 100,
             )
-            self.inform(message, log=False, end='\r')
+            self.inform(message, log=False, end="\r")
         except ZeroDivisionError:
             pass
 
@@ -90,9 +90,9 @@ class Pipeline:
         """
         try:
             new_ip = self.tor_ip_changer.get_new_ip()
-            logging.info('New IP: {new_ip}'.format(new_ip=new_ip))
+            logging.info("New IP: {new_ip}".format(new_ip=new_ip))
         except:
-            logging.error('Failed setting new IP')
+            logging.error("Failed setting new IP")
             return self.change_ip()
 
     def _produce_urls_wrapper(self, producer_function):
@@ -106,7 +106,7 @@ class Pipeline:
 
         urls_count = producer_function()
 
-        self.inform('URLs to process: {}'.format(urls_count))
+        self.inform("URLs to process: {}".format(urls_count))
         time.sleep(1)
         self.urls_to_process.value = urls_count
 
@@ -117,6 +117,7 @@ class Pipeline:
 
     def produce_list_urls(self):
         """Populate 'url_queue' with generated list URLs."""
+
         def producer_function():
             urls_count = 0
             for list_url in self._actually_produce_list_urls():
@@ -132,6 +133,7 @@ class Pipeline:
 
     def produce_item_urls(self):
         """Populate 'url_queue' with loaded item URLs."""
+
         def producer_function():
             urls_count = 0
             for item_url in self._actually_produce_item_urls():
@@ -166,7 +168,7 @@ class Pipeline:
             for response in self.pool.map(get, urls):
                 self._classify_response(response)
         except Exception as exc:
-            logging.error('Failed scraping URLs')
+            logging.error("Failed scraping URLs")
             logging.exception(exc)
         finally:
             self.requesting_in_progress.clear()
@@ -265,7 +267,7 @@ class Pipeline:
             self.databaser.insert(data, self.databaser.item_data_table)
 
         # Remove processed item URL.
-        self.databaser.delete_url(data['url'])
+        self.databaser.delete_url(data["url"])
 
     def _actually_store_data(self, data):
         """Store provided data in the DB.
@@ -279,7 +281,7 @@ class Pipeline:
             else:
                 self._store_item_properties(data)
         except Exception as exc:
-            logging.error('Failed storing data')
+            logging.error("Failed storing data")
             logging.exception(exc)
         finally:
             self.urls_processed.value += 1
@@ -303,7 +305,7 @@ class Pipeline:
         message to all queues. This action leads to exiting `while` loops which
         workers processes run in.
         """
-        self.inform('Exiting workers, please wait ...')
+        self.inform("Exiting workers, please wait ...")
 
         self.url_queue.put(EXIT)
         self.response_queue.put(EXIT)
@@ -315,9 +317,9 @@ class Pipeline:
         :returns bool
         """
         return (
-            self.url_queue.empty() and
-            self.response_queue.empty() and
-            self.data_queue.empty()
+            self.url_queue.empty()
+            and self.response_queue.empty()
+            and self.data_queue.empty()
         )
 
     def _workers_idle(self):
@@ -326,9 +328,9 @@ class Pipeline:
         :returns bool
         """
         return (
-            not self.producing_urls_in_progress.is_set() and
-            not self.requesting_in_progress.is_set() and
-            not self.scraping_in_progress.is_set()
+            not self.producing_urls_in_progress.is_set()
+            and not self.requesting_in_progress.is_set()
+            and not self.scraping_in_progress.is_set()
         )
 
     def switch_power(self):
@@ -336,20 +338,20 @@ class Pipeline:
         while True:
             # Check if workers can end.
             if (
-                self._queues_empty() and
-                self._workers_idle() and
-                self.urls_bucket_empty.value
+                self._queues_empty()
+                and self._workers_idle()
+                and self.urls_bucket_empty.value
             ):
                 self.exit_workers()
                 break
 
             # Ensure all URLs are processed.
             if (
-                self._queues_empty() and
-                self._workers_idle() and
-                not self.urls_bucket_empty.value
+                self._queues_empty()
+                and self._workers_idle()
+                and not self.urls_bucket_empty.value
             ):
-                logging.info('Dumping URLs bucket')
+                logging.info("Dumping URLs bucket")
                 self.url_queue.put(DUMP_URLS_BUCKET)
 
             # Inform about the progress.
@@ -375,7 +377,7 @@ class Pipeline:
 
     def get_item_urls(self):
         """Get item URLs from item list pages."""
-        self.inform('Collecting item URLs')
+        self.inform("Collecting item URLs")
 
         # scraper --> url_queue.
         self.employ_worker(self.produce_list_urls)
@@ -397,7 +399,7 @@ class Pipeline:
 
     def get_item_properties(self):
         """Get item properties from item pages."""
-        self.inform('Collecting item properties')
+        self.inform("Collecting item properties")
 
         # DB --> url_queue.
         self.employ_worker(self.produce_item_urls)
@@ -422,4 +424,4 @@ class DockerizedPipeline(Pipeline):
     def inform(self, message, log=True, **kwargs):
         # Prevent using `end = '\r'` as that way docker-compose won't show all
         # messages.
-        super().inform(message, log=log, end='\n')
+        super().inform(message, log=log, end="\n")

@@ -12,7 +12,7 @@ from scrapemeagain.utils.useragents import get_user_agents
 
 # Update config, setup logging and useragents.
 apply_scraper_config()
-setup_logging(logger_name='examplescraper')
+setup_logging(logger_name="examplescraper")
 Config.USER_AGENTS = get_user_agents()
 
 
@@ -21,7 +21,7 @@ tor_ip_changer = DockerizedTorIpChanger(
     local_http_proxy=Config.LOCAL_HTTP_PROXY,
     tor_password=Config.TOR_PASSWORD,
     tor_port=Config.TOR_PORT,
-    new_ip_max_attempts=Config.NEW_IP_MAX_ATTEMPTS
+    new_ip_max_attempts=Config.NEW_IP_MAX_ATTEMPTS,
 )
 
 
@@ -32,7 +32,7 @@ pipeline = DockerizedPipeline(scraper, databaser, tor_ip_changer)
 pipeline.prepare_multiprocessing()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Change IP before starting.
     pipeline.tor_ip_changer.get_new_ip()
 

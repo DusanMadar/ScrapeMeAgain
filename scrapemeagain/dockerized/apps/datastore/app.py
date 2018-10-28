@@ -12,17 +12,17 @@ datastore_class = get_class_from_path(Config.DATASTORE_DATABASER_CLASS)
 DATASTORE = datastore_class()
 
 
-@app.route('/insert-data/', methods=['POST'])
+@app.route("/insert-data/", methods=["POST"])
 def insert_data():
     DATASTORE.insert(request.json)
-    return '', 201
+    return "", 201
 
 
-@app.route('/commit/')
+@app.route("/commit/")
 def commit():
     DATASTORE.commit()
-    return '', 204
+    return "", 204
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=Config.DATASTORE_PORT)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=Config.DATASTORE_PORT)

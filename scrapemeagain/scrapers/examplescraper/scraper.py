@@ -8,14 +8,14 @@ from scrapemeagain.scrapers.basescraper import BaseScraper
 from scrapemeagain.scrapers.examplescraper.model import ExampleDataTable
 
 
-URL_QUERY = '/url?q='
+URL_QUERY = "/url?q="
 
 
 class ExampleScraper(BaseScraper):
-    base_url = 'https://www.google.com/'
-    list_url_template = 'search?q=rock&start='
+    base_url = "https://www.google.com/"
+    list_url_template = "search?q=rock&start="
 
-    db_file = 'example'
+    db_file = "example"
     db_table = ExampleDataTable
 
     def _format_list_url(self, index):
@@ -32,17 +32,17 @@ class ExampleScraper(BaseScraper):
 
     def get_item_urls(self, response):
         links = []
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
 
-        for h3 in soup.findAll('h3', {'class': 'r'}):
+        for h3 in soup.findAll("h3", {"class": "r"}):
             url_data = {}
 
-            url = h3.find('a').get('href').split('&')[0]
+            url = h3.find("a").get("href").split("&")[0]
             if url.startswith(URL_QUERY):
                 # Get only direct links, ignore google's redirects, etc.
-                url = url.replace(URL_QUERY, '')
+                url = url.replace(URL_QUERY, "")
 
-                url_data['url'] = url
+                url_data["url"] = url
 
             links.append(url_data)
 
@@ -52,15 +52,13 @@ class ExampleScraper(BaseScraper):
         # TODO how about moveing this to '_actually_collect_data()'?
         # Always provide an URL so it can be removed from URLs table
         # (and thus marked as processed).
-        properties = {
-            'url': response.url
-        }
+        properties = {"url": response.url}
 
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
 
-        headers = soup.findAll('h1')
+        headers = soup.findAll("h1")
         if headers:
-            properties['h1'] = headers[0].text
+            properties["h1"] = headers[0].text
 
         return properties
 
@@ -70,8 +68,7 @@ class DockerizedExampleScraper(ExampleScraper):
         start, stop = urlbroker_api.get_list_urls_range()
 
         catalog_urls = (
-            self._format_list_url(i)
-            for i in range(start, stop, -1)
+            self._format_list_url(i) for i in range(start, stop, -1)
         )
 
         return catalog_urls

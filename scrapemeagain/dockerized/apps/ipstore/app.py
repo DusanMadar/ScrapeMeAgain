@@ -12,16 +12,14 @@ app = app_factory(__name__)
 IPSTORE = TorIpChanger(reuse_threshold=Config.IPSTORE_REUSE_THRESHOLD)
 
 
-@app.route('/ip-is-safe/<ip>/')
+@app.route("/ip-is-safe/<ip>/")
 def ip_is_safe(ip):
     safe = IPSTORE._ip_is_safe(ip)
     if safe:
         IPSTORE._manage_used_ips(ip)
 
-    return jsonify({
-        'safe': safe
-    })
+    return jsonify({"safe": safe})
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=Config.IPSTORE_PORT)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=Config.IPSTORE_PORT)

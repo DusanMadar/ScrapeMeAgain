@@ -12,14 +12,11 @@ urlbroker_class = get_class_from_path(Config.URLBROKER_CLASS)
 URLBROKER = urlbroker_class()
 
 
-@app.route('/list-urls-range/')
+@app.route("/list-urls-range/")
 def list_urls_range():
     start, end = URLBROKER.get_urls_range()
-    return jsonify({
-        'start': start,
-        'end': end
-    })
+    return jsonify({"start": start, "end": end})
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=Config.URLBROKER_PORT)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=Config.URLBROKER_PORT)

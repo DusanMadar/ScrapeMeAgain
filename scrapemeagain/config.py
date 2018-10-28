@@ -2,11 +2,11 @@ class Config:
     #
     # General settings.
     # Where to place the *.sqlite DB file populated with scraped data.
-    DATA_DIRECTORY = '/tmp'
+    DATA_DIRECTORY = "/tmp"
 
     # Log level settings.
     # NOTE 'DEBUG' will be very verbose.
-    LOG_LEVEL = 'WARNING'
+    LOG_LEVEL = "WARNING"
 
     # How often data (how many items at once) should be commited to the DB.
     TRANSACTION_SIZE = 5000
@@ -30,16 +30,16 @@ class Config:
     #
     # Tor.
     TOR_PORT = 9051
-    TOR_PASSWORD = 'I-solemnly-swear-I-am-up-to-no-good'
+    TOR_PASSWORD = "I-solemnly-swear-I-am-up-to-no-good"
 
     #
     # Privoxy.
     PRIVOXY_PORT = 8118
-    PRIVOXY_HOST = '127.0.0.1'
+    PRIVOXY_HOST = "127.0.0.1"
 
     #
     # TorIpChanger.
-    LOCAL_HTTP_PROXY = '{0}:{1}'.format(PRIVOXY_HOST, PRIVOXY_PORT)
+    LOCAL_HTTP_PROXY = "{0}:{1}".format(PRIVOXY_HOST, PRIVOXY_PORT)
     NEW_IP_MAX_ATTEMPTS = 1000
     REUSE_THRESHOLD = 10
 
@@ -50,7 +50,7 @@ class Config:
     #
     # Orchestration.
     SCRAPERS_COUNT = 1
-    MASTER_SCRAPER = 'scp1'
+    MASTER_SCRAPER = "scp1"
 
     #
     # IpStore.
@@ -65,7 +65,7 @@ class Config:
     # NOTE each scraper MUST set a custom `ListUrlsBroker` subclass in
     # 'scrapemeagain.scrapers.{your scraper}.config.URLBROKER_CLASS'
     URLBROKER_CLASS = (
-        'scrapemeagain.dockerized.apps.urlbroker.urlbrokers.ListUrlsBroker'
+        "scrapemeagain.dockerized.apps.urlbroker.urlbrokers.ListUrlsBroker"
     )
 
     #
@@ -74,7 +74,7 @@ class Config:
     DATASTORE_HOST = MASTER_SCRAPER
     # NOTE set 'scrapemeagain.scrapers.{your scraper}.config.DATASTORE_CLASS'
     # if your scraper adds custom functionality to `DataStoreDatabaser`.
-    DATASTORE_DATABASER_CLASS = 'scrapemeagain.databaser.DataStoreDatabaser'
+    DATASTORE_DATABASER_CLASS = "scrapemeagain.databaser.DataStoreDatabaser"
 
     #
     # Healthcheck.

@@ -24,11 +24,11 @@ def app_factory(name):
 
     app = Flask(name)
 
-    logger_name = app.root_path.rsplit('/', 1)[-1]
+    logger_name = app.root_path.rsplit("/", 1)[-1]
     setup_logging(logger_name)
 
-    @app.route('/health/')
+    @app.route("/health/")
     def healthcheck():
-        return ''
+        return ""
 
     return app

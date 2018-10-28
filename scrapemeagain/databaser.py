@@ -44,12 +44,12 @@ class BaseDatabaser:
         if not os.path.exists(Config.DATA_DIRECTORY):
             os.makedirs(Config.DATA_DIRECTORY)
 
-        db = os.path.join(Config.DATA_DIRECTORY, self.db_name) + '.sqlite'
+        db = os.path.join(Config.DATA_DIRECTORY, self.db_name) + ".sqlite"
         if not os.path.exists(db):
-            with open(db, 'w'):
+            with open(db, "w"):
                 pass
 
-        return create_engine('sqlite:///{}'.format(db))
+        return create_engine("sqlite:///{}".format(db))
 
     def create_tables(self, create_urls_table=True, create_data_table=True):
         """
@@ -68,9 +68,9 @@ class BaseDatabaser:
         try:
             self.session.commit()
             self.transaction_items = 0
-            logging.info('Changes successfully committed')
+            logging.info("Changes successfully committed")
         except Exception as exc:
-            logging.error('Failed to commit changes, rolling back ...')
+            logging.error("Failed to commit changes, rolling back ...")
             logging.exception(exc)
             self.session.rollback()
 
@@ -123,9 +123,7 @@ class BaseDatabaser:
         :argument url:
         :type url: str
         """
-        self.session.query(
-            self.item_urls_table
-        ).filter(
+        self.session.query(self.item_urls_table).filter(
             self.item_urls_table.url == url
         ).delete()
 
@@ -147,7 +145,7 @@ class BaseDatabaser:
         """.format(
             id=self.item_urls_table.id.key,
             url=self.item_urls_table.url.key,
-            table=self.item_urls_table.__tablename__
+            table=self.item_urls_table.__tablename__,
         ).strip()
 
         self.engine.execute(raw_sql)
@@ -160,9 +158,7 @@ class BaseDatabaser:
         """
         self._remove_duplicate_item_urls()
 
-        return self.session.query(
-            self.item_urls_table.url
-        ).order_by(
+        return self.session.query(self.item_urls_table.url).order_by(
             self.item_urls_table.id.desc()
         )
 
@@ -181,6 +177,7 @@ class DataOnlyDatabaser(BaseDatabaser):
         self.item_data_table = data_table
         self.item_urls_table = None
     """
+
     def __init__(self, db_name, data_table):
         super().__init__(db_name, data_table)
         self.item_urls_table = None
@@ -198,6 +195,7 @@ class UrlsOnlyDatabaser(BaseDatabaser):
         self.item_data_table = None
         self.item_urls_table = ItemUrlsTable
     """
+
     def __init__(self, db_name):
         super().__init__(db_name, None)
         self.create_tables(create_data_table=False)
@@ -207,6 +205,7 @@ class DataStoreDatabaser(DataOnlyDatabaser):
     """
     A data only databaser intended to used as the `datastore` app DB backend.
     """
+
     def deserialize_data(self, data):
         """
         Update the serialized `data` dict to match the DB schema and return it.
@@ -224,8 +223,9 @@ class DockerizedDatabaser(UrlsOnlyDatabaser):
 
     This is the databaser class each dockerized scraped should use/subclass.
     """
+
     def __init__(self, db_name):
-        super().__init__('{0}_{1}'.format(db_name, socket.gethostname()))
+        super().__init__("{0}_{1}".format(db_name, socket.gethostname()))
 
     def serialize_data(self, data):
         """

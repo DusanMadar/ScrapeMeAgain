@@ -14,7 +14,7 @@ def get_class_from_path(path):
 
     :returns: class
     """
-    module_path, class_name = path.rsplit('.', 1)
+    module_path, class_name = path.rsplit(".", 1)
     module = __import__(module_path, fromlist=[class_name])
 
     return getattr(module, class_name)
@@ -30,9 +30,9 @@ def apply_scraper_config(scraper=None):
     :returns: class
     """
     if scraper is None:
-        scraper = os.environ.get('SCRAPER_PACKAGE')
+        scraper = os.environ.get("SCRAPER_PACKAGE")
 
-    get_class_from_path('scrapemeagain.scrapers.{}.config'.format(scraper))
+    get_class_from_path("scrapemeagain.scrapers.{}.config".format(scraper))
 
 
 def scraper_is_running(hostname):
@@ -46,7 +46,7 @@ def scraper_is_running(hostname):
     """
     try:
         result = check_call(
-            ['ping', '-c', '2', hostname], stdout=PIPE, stderr=PIPE
+            ["ping", "-c", "2", hostname], stdout=PIPE, stderr=PIPE
         )
     except CalledProcessError:
         result = 1
@@ -67,7 +67,7 @@ def wait_for_other_scrapers():
         if sraper_id == 1:
             continue
 
-        hostname = 'scp{}'.format(sraper_id)
+        hostname = "scp{}".format(sraper_id)
         while True:
             if not scraper_is_running(hostname):
                 break
