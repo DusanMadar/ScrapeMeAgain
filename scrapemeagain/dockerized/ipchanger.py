@@ -11,3 +11,9 @@ class DockerizedTorIpChanger(TorIpChanger):
         # No need to maintain used IPs locally the global IP store takes care
         # of that.
         pass
+
+
+class TestFriendlyDockerizedTorIpChanger(TorIpChanger):
+    def get_new_ip(self):
+        # We don't want to change IP address while testing.
+        pass

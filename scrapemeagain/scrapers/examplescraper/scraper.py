@@ -8,12 +8,11 @@ from scrapemeagain.scrapers.basescraper import BaseScraper
 from scrapemeagain.scrapers.examplescraper.model import ExampleDataTable
 
 
-URL_QUERY = "/url?q="
-
-
 class ExampleScraper(BaseScraper):
-    base_url = "https://www.google.com/"
-    list_url_template = "search?q=rock&start="
+    # TODO the IP below is for my local docker bridge. Add a function which
+    # can get it dynamically.
+    base_url = "http://172.17.0.1:9090/posts/"
+    list_url_template = "?page="
 
     db_file = "example"
     db_table = ExampleDataTable
@@ -34,15 +33,8 @@ class ExampleScraper(BaseScraper):
         links = []
         soup = BeautifulSoup(response.content, "html.parser")
 
-        for h3 in soup.findAll("h3", {"class": "r"}):
-            url_data = {}
-
-            url = h3.find("a").get("href").split("&")[0]
-            if url.startswith(URL_QUERY):
-                # Get only direct links, ignore google's redirects, etc.
-                url = url.replace(URL_QUERY, "")
-
-                url_data["url"] = url
+        for h3 in soup.findAll("h3"):
+            url_data = {"url": h3.find("a").get("href")}
 
             links.append(url_data)
 

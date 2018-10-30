@@ -1,0 +1,19 @@
+<html>
+    <head>
+        <title>Posts</title>
+    </head>
+    <body>
+    <h1>Posts {{ start }} - {{ stop }}</h1>
+
+    {% for id in range(start, stop + 1) %}
+    <h3>
+      <a href="{{ url_for('post_detail', id=id, _external=True) }}">Post #{{id}}</a>
+    </h3>
+    {% endfor %}
+
+    {% if page_prev >= 0 %}
+    <a href="{{ url_for('post_list', page=page_prev, _external=True) }}">Prev</a> |
+    {% endif %}
+    <a href="{{ url_for('post_list', page=page_next, _external=True) }}">Next</a>
+    </body>
+</html>

@@ -42,6 +42,9 @@ class Config:
     LOCAL_HTTP_PROXY = "{0}:{1}".format(PRIVOXY_HOST, PRIVOXY_PORT)
     NEW_IP_MAX_ATTEMPTS = 1000
     REUSE_THRESHOLD = 10
+    TORIPCHANGER_CLASS = (
+        "scrapemeagain.dockerized.ipchanger.DockerizedTorIpChanger"
+    )
 
     # =========================================================================
     # DOCKERIZED SETTINGS.

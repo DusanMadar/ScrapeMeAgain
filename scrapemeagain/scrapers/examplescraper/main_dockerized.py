@@ -1,6 +1,8 @@
 from scrapemeagain.config import Config
-from scrapemeagain.dockerized.ipchanger import DockerizedTorIpChanger
-from scrapemeagain.dockerized.utils import apply_scraper_config
+from scrapemeagain.dockerized.utils import (
+    apply_scraper_config,
+    get_class_from_path,
+)
 from scrapemeagain.pipeline import DockerizedPipeline
 from scrapemeagain.scrapers.examplescraper.databaser import DockerizedDatabaser
 from scrapemeagain.scrapers.examplescraper.scraper import (
@@ -17,7 +19,8 @@ Config.USER_AGENTS = get_user_agents()
 
 
 # Configure DockerizedTorIpChanger.
-tor_ip_changer = DockerizedTorIpChanger(
+toripchanger_class = get_class_from_path(Config.TORIPCHANGER_CLASS)
+tor_ip_changer = toripchanger_class(
     local_http_proxy=Config.LOCAL_HTTP_PROXY,
     tor_password=Config.TOR_PASSWORD,
     tor_port=Config.TOR_PORT,
