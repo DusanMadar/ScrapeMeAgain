@@ -20,19 +20,30 @@ def get_class_from_path(path):
     return getattr(module, class_name)
 
 
-def apply_scraper_config(scraper=None):
+def apply_scraper_config(scraper_package=None, scraper_config=None):
     """
     Apply scraper specific config (by simply loading it's module).
 
-    :argument scraper: scraper package name
-    :type scraper: str
+    :argument scraper_package: scraper package name
+    :type scraper_package: str
+    :argument scraper_config: dotted path to scraper config
+    :type scraper_config: str
 
     :returns: class
     """
-    if scraper is None:
-        scraper = os.environ.get("SCRAPER_PACKAGE")
+    if scraper_config is None:
+        scraper_config = os.environ.get("SCRAPER_CONFIG")
 
-    get_class_from_path("scrapemeagain.scrapers.{}.config".format(scraper))
+        if scraper_config is not None:
+            get_class_from_path(scraper_config)
+            return
+
+    if scraper_package is None:
+        scraper_package = os.environ.get("SCRAPER_PACKAGE")
+
+    get_class_from_path(
+        "scrapemeagain.scrapers.{}.config".format(scraper_package)
+    )
 
 
 def scraper_is_running(hostname):

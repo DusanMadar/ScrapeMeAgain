@@ -2,15 +2,16 @@
 Dynamic `docker-compose.yml` based on settings defined in `config`.
 
 Usage:
-    `python3 docker-compose.py <scraper> | docker-compose -f - up`
+    `python3 docker-compose.py -s <scraper> [-c <path.to.config>] | docker-compose -f - up`
 
     Example:
     $ cd scrapemeagain
-    $ python3 docker-compose.py examplescraper | docker-compose -f - up
-"""
+    $ python3 docker-compose.py -s examplescraper | docker-compose -f - up
+    $ python3 docker-compose.py -s examplescraper -c tests.test_integration_example_scraper_config | docker-compose -f - up
+"""  # noqa
 
+import argparse
 import os
-import sys
 
 import yaml
 
@@ -26,7 +27,23 @@ ENTRYPOINT_PATH_TEMPLATE = (
 )
 
 
-def create_scraper_service(sraper_id, scraper_package):
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-s",
+    "--scraper",
+    required=True,
+    help="Scraper package name, e.g. 'examplescraper'.",
+)
+parser.add_argument(
+    "-c",
+    "--config",
+    required=False,
+    help="Config module dotted path.",
+    default=None,
+)
+
+
+def create_scraper_service(sraper_id, scraper_package, scraper_config):
     service_name = "scp{}".format(sraper_id)
     service_settings = {
         "container_name": service_name,
@@ -44,6 +61,7 @@ def create_scraper_service(sraper_id, scraper_package):
             "HEALTHCHECK_PORT={}".format(Config.HEALTHCHECK_PORT),
             "HEALTHCHECK_HOST={}".format(Config.HEALTHCHECK_HOST),
             "SCRAPER_PACKAGE={}".format(scraper_package),
+            "SCRAPER_CONFIG={}".format(scraper_config),
         ],
         "hostname": service_name,
         "image": "scp:latest",
@@ -67,9 +85,9 @@ def create_scraper_service(sraper_id, scraper_package):
     return {service_name: service_settings}
 
 
-def construct_compose_dict(scraper_package):
+def construct_compose_dict(scraper_package, scraper_config):
     # Apply scraper specific config.
-    apply_scraper_config(scraper_package)
+    apply_scraper_config(scraper_package, scraper_config)
 
     docker_compose = {"version": "3", "services": {}}
 
@@ -77,16 +95,12 @@ def construct_compose_dict(scraper_package):
         sraper_id += 1
 
         docker_compose["services"].update(
-            create_scraper_service(sraper_id, scraper_package)
+            create_scraper_service(sraper_id, scraper_package, scraper_config)
         )
 
     return docker_compose
 
 
 if __name__ == "__main__":
-    try:
-        scraper_package = sys.argv[1]
-    except IndexError:
-        sys.exit("Please provide a scraper name to {}".format(__file__))
-
-    print(yaml.dump(construct_compose_dict(scraper_package)))
+    args = parser.parse_args()
+    print(yaml.dump(construct_compose_dict(args.scraper, args.config)))
