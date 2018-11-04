@@ -7,7 +7,7 @@ Usage:
     Example:
     $ cd scrapemeagain
     $ python3 docker-compose.py -s examplescraper | docker-compose -f - up
-    $ python3 docker-compose.py -s examplescraper -c tests.test_integration_example_scraper_config | docker-compose -f - up
+    $ python3 docker-compose.py -s examplescraper -c tests.integration.fake_config | docker-compose -f - up
 """  # noqa
 
 import argparse
@@ -16,8 +16,10 @@ import os
 import yaml
 
 from scrapemeagain.config import Config
-from scrapemeagain.dockerized.utils import apply_scraper_config
-
+from scrapemeagain.dockerized.utils import (
+    apply_scraper_config,
+    get_inf_ip_address,
+)
 
 CONTAINER_SRCDIR = "/scp"  # Must match `SRCDIR` env variable in Dockerfile.
 CURENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +27,8 @@ CURENT_DIR = os.path.dirname(os.path.abspath(__file__))
 ENTRYPOINT_PATH_TEMPLATE = (
     CONTAINER_SRCDIR + "/scrapemeagain/dockerized/entrypoints/entrypoint.{}.sh"
 )
+
+DOCKER_HOST_IP = get_inf_ip_address(Config.DOCKER_INTERFACE_NAME)
 
 
 parser = argparse.ArgumentParser()
@@ -61,12 +65,17 @@ def create_scraper_service(sraper_id, scraper_package, scraper_config):
             "HEALTHCHECK_PORT={}".format(Config.HEALTHCHECK_PORT),
             "HEALTHCHECK_HOST={}".format(Config.HEALTHCHECK_HOST),
             "SCRAPER_PACKAGE={}".format(scraper_package),
-            "SCRAPER_CONFIG={}".format(scraper_config),
+            "DOCKER_HOST_IP={}".format(DOCKER_HOST_IP),
         ],
         "hostname": service_name,
         "image": "scp:latest",
         "volumes": ["{}:{}".format(CURENT_DIR, CONTAINER_SRCDIR)],
     }
+
+    if scraper_config is not None:
+        service_settings["environment"].append(
+            "SCRAPER_CONFIG={}".format(scraper_config)
+        )
 
     if sraper_id == 1:
         # Master scraper specific settings.
@@ -85,7 +94,7 @@ def create_scraper_service(sraper_id, scraper_package, scraper_config):
     return {service_name: service_settings}
 
 
-def construct_compose_dict(scraper_package, scraper_config):
+def construct_compose_dict(scraper_package, scraper_config=None):
     # Apply scraper specific config.
     apply_scraper_config(scraper_package, scraper_config)
 

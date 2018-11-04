@@ -3,7 +3,7 @@ from unittest.mock import patch, PropertyMock
 
 from requests import Response
 
-from pipeline_base import TestPipelineBase
+from tests.pipeline_base import TestPipelineBase
 from scrapemeagain.pipeline import EXIT, DUMP_URLS_BUCKET
 from scrapemeagain.utils.http import get
 
@@ -585,7 +585,3 @@ class TestPipeline(TestPipelineBase):
         mock_employ_worker.assert_any_call(self.pipeline.switch_power)
         mock_get_html.assert_called_once_with()
         mock_release_workers.assert_called_once_with()
-
-
-if __name__ == "__main__":
-    unittest.main()

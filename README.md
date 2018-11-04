@@ -16,11 +16,11 @@ With Docker it is possible to use multiple Tor IPs at the same time and, unless 
 
 The easiest way to start is to duplicate `scrapemeagain/scrapers/examplescraper` and then update, rename, expand, etc. your scraper and related classes.
 
-Your scraper must define `config.py` and `main_dockerized.py`. These two names are hardcoded throughout the codebase. 
+Your scraper must define `config.py` and `main_dockerized.py`. These two names are hardcoded throughout the codebase.
 
 A dynamic `docker-compose` is responsible for orchestrating scraper instances. The idea is that the first scraper (`scp1`) is a `master` scraper and hence is the host for a couple of helper services which communicate over HTTP (see [`dockerized/apps`](https://github.com/DusanMadar/ScrapeMeAgain/tree/master/scrapemeagain/dockerized/apps)).
 
-Use `python3 docker-compose.py examplescraper | docker-compose -f - up --build` to run the dockerized `examplescraper`.
+Run `examplesite` on Docker host IP (`ip addr show docker0`) so that it can be accessed from containers: `pyton examplesite/app.py 172.17.0.1`. Then run `python3 docker-compose.py -s examplescraper -c tests.integration.fake_config | docker-compose -f - up` to start the dockerized `examplescraper`.
 
 
 ## System requirements

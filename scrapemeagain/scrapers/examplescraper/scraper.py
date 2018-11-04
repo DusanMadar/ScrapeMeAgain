@@ -1,21 +1,33 @@
+import os
+
 from bs4 import BeautifulSoup
 
 from scrapemeagain.dockerized.apps.urlbroker import (
     client as urlbroker_client,
     urlbrokers,
 )
+from scrapemeagain.dockerized.utils import inside_condainer
 from scrapemeagain.scrapers.basescraper import BaseScraper
 from scrapemeagain.scrapers.examplescraper.model import ExampleDataTable
 
 
 class ExampleScraper(BaseScraper):
-    # TODO the IP below is for my local docker bridge. Add a function which
-    # can get it dynamically.
-    base_url = "http://172.17.0.1:9090/posts/"
+    base_url = "http://localhost:9090/posts/"
     list_url_template = "?page="
 
     db_file = "example"
     db_table = ExampleDataTable
+
+    def __init__(self):
+        # NOTE you don't need to do this for publicly accessible websites. In
+        # fact, the whole __init__ method is here "only" to enable testing with
+        # Docker. Containers cannot access host's localhost and hence we have
+        # to point the scraper to `DOCKER_HOST_IP` (and examplesite has to be
+        # running on that same address of course).
+        if inside_condainer():
+            self.base_url = self.base_url.replace(
+                "localhost", os.environ.get("DOCKER_HOST_IP")
+            )
 
     def _format_list_url(self, index):
         return self.base_url + self.list_url_template + str(index)
@@ -58,12 +70,7 @@ class ExampleScraper(BaseScraper):
 class DockerizedExampleScraper(ExampleScraper):
     def generate_list_urls(self):
         start, stop = urlbroker_client.get_list_urls_range()
-
-        catalog_urls = (
-            self._format_list_url(i) for i in range(start, stop, -1)
-        )
-
-        return catalog_urls
+        return (self._format_list_url(i) for i in range(start, stop, -1))
 
 
 class ListUrlsBroker(urlbrokers.ListUrlsBroker):

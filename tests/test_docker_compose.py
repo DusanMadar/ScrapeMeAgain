@@ -5,6 +5,16 @@ docker_compose = __import__("docker-compose")
 
 
 class DockerComposeTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Dirty way to mock `DOCKER_HOST_IP`.
+        cls.original_docker_host_ip = docker_compose.DOCKER_HOST_IP
+        docker_compose.DOCKER_HOST_IP = "fake_docker_host_ip"
+
+    @classmethod
+    def tearDownClass(cls):
+        docker_compose.DOCKER_HOST_IP = cls.original_docker_host_ip
+
     def test_construct_compose_dict(self):
         """
         Test `construct_compose_dict` returns expected compose dict.
@@ -28,6 +38,8 @@ class DockerComposeTestCase(unittest.TestCase):
                         "HEALTHCHECK_PORT=8000",
                         "HEALTHCHECK_HOST=scp1",
                         "SCRAPER_PACKAGE=examplescraper",
+                        "DOCKER_HOST_IP=fake_docker_host_ip",
+                        "SCRAPER_CONFIG=tests.integration.fake_config",
                     ],
                     "hostname": "scp1",
                     "image": "scp:latest",
@@ -54,6 +66,8 @@ class DockerComposeTestCase(unittest.TestCase):
                         "HEALTHCHECK_PORT=8000",
                         "HEALTHCHECK_HOST=scp1",
                         "SCRAPER_PACKAGE=examplescraper",
+                        "DOCKER_HOST_IP=fake_docker_host_ip",
+                        "SCRAPER_CONFIG=tests.integration.fake_config",
                     ],
                     "hostname": "scp2",
                     "image": "scp:latest",
@@ -65,8 +79,10 @@ class DockerComposeTestCase(unittest.TestCase):
         }
 
         self.assertEqual(
-            docker_compose.construct_compose_dict("examplescraper"),
             expected_examplescraper_compose_dict,
+            docker_compose.construct_compose_dict(
+                "examplescraper", "tests.integration.fake_config"
+            ),
         )
 
     def test_construct_compose_dict_nonexisting_scraper(self):

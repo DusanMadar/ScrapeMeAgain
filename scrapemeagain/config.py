@@ -50,6 +50,8 @@ class Config:
     # DOCKERIZED SETTINGS.
     # =========================================================================
 
+    DOCKER_INTERFACE_NAME = "docker0"
+
     #
     # Orchestration.
     SCRAPERS_COUNT = 1

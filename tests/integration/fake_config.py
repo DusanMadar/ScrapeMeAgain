@@ -5,7 +5,7 @@ Config.LOCAL_HTTP_PROXY = ""
 
 # Don't actualy change tor's IP address.
 Config.TORIPCHANGER_CLASS = (
-    "scrapemeagain.dockerized.ipchanger.TestFriendlyDockerizedTorIpChanger"
+    "tests.integration.fake_ipchanger.FakeDockerizedTorIpChanger"
 )
 
 Config.DATA_DIRECTORY = "/tmp/test-examplescraper"

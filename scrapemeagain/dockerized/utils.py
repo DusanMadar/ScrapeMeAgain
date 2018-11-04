@@ -1,5 +1,8 @@
+import fcntl
 import os
 from subprocess import CalledProcessError, check_call, PIPE
+import socket
+import struct
 from time import sleep
 
 from flask import Flask
@@ -67,9 +70,9 @@ def apply_scraper_config(scraper_package=None, scraper_config=None):
     if scraper_config is None:
         scraper_config = os.environ.get("SCRAPER_CONFIG")
 
-        if scraper_config is not None:
-            get_class_from_path(scraper_config)
-            return
+    if scraper_config is not None:
+        get_class_from_path(scraper_config)
+        return
 
     if scraper_package is None:
         scraper_package = os.environ.get("SCRAPER_PACKAGE")
@@ -95,7 +98,7 @@ def scraper_is_running(hostname):
     except CalledProcessError:
         result = 1
 
-    # It ping's return code == 0 the scraper is running.
+    # If ping's return code == 0 the scraper is running.
     return result == 0
 
 
@@ -117,3 +120,35 @@ def wait_for_other_scrapers():
                 break
 
             sleep(2)
+
+
+def get_inf_ip_address(ifname):
+    """
+    Get IP address of the given interface nameself.
+
+    Credits https://stackoverflow.com/q/24196932/4183498.
+
+    :argument ifname: interface name
+    :type ifname: str
+
+    :returns: str
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(
+        fcntl.ioctl(
+            s.fileno(),
+            0x8915,  # SIOCGIFADDR
+            struct.pack("256s", bytes(ifname[:15], "utf-8")),
+        )[20:24]
+    )
+
+
+def inside_condainer():
+    """
+    Check if the process runs inside a container.
+
+    Credits: https://stackoverflow.com/q/23513045/4183498.
+
+    :returns: bool
+    """
+    return os.path.exists("/.dockerenv")
