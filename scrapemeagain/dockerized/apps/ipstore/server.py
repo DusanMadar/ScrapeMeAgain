@@ -2,7 +2,7 @@ from flask import jsonify
 from toripchanger import TorIpChanger
 
 from scrapemeagain.config import Config
-from scrapemeagain.dockerized.apps.utils import app_factory
+from scrapemeagain.dockerized.utils import app_factory
 
 
 app = app_factory(__name__)
