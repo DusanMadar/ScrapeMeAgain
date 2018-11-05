@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/DusanMadar/ScrapeMeAgain.svg?branch=master)](https://travis-ci.org/DusanMadar/ScrapeMeAgain)
+
+
 # ScrapeMeAgain
 
 ScrapeMeAgain is a Python 3 powered web scraper. It uses multiprocessing to get the work done quicker and stores collected data in an [SQLite](http://www.sqlite.org/) database.
