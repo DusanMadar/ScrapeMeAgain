@@ -1,5 +1,7 @@
 from scrapemeagain.config import Config
 
+Config.REUSE_THRESHOLD = 1
+
 Config.SCRAPERS_COUNT = 2
 
 Config.LOG_LEVEL = "DEBUG"

@@ -11,7 +11,21 @@ ScrapeMeAgain is a Python 3 powered web scraper. It uses multiprocessing to get 
 ### Basic
 You have to provide your own database table description and an actual scraper class which must follow the `BaseScraper` interface. See `scrapemeagain/scrapers/examplescraper` for more details.
 
-Use `python3 scrapemeagain/scrapers/examplescraper/main.py` to run the `examplescraper` from command line.
+#### Run `examplescraper` locally
+
+1. Run `examplesite`
+
+```
+python3 scrapemeagain/scrapers/examplescraper/examplesite/app.py
+```
+
+2. Start `examplescraper`
+
+```
+ python3 scrapemeagain/scrapers/examplescraper/main.py
+```
+
+**NOTE** You may need to update your `PYTHONPATH`.
 
 ### Dockerized
 
@@ -23,7 +37,31 @@ Your scraper must define `config.py` and `main_dockerized.py`. These two names a
 
 A dynamic `docker-compose` is responsible for orchestrating scraper instances. The idea is that the first scraper (`scp1`) is a `master` scraper and hence is the host for a couple of helper services which communicate over HTTP (see [`dockerized/apps`](https://github.com/DusanMadar/ScrapeMeAgain/tree/master/scrapemeagain/dockerized/apps)).
 
-Run `examplesite` on Docker host IP (`ip addr show docker0`) so that it can be accessed from containers: `pyton examplesite/app.py 172.17.0.1`. Then run `python3 docker-compose.py -s examplescraper -c tests.integration.fake_config | docker-compose -f - up` to start the dockerized `examplescraper`.
+#### Run `examplescraper` with Docker
+
+1. Get Docker host Ip
+
+```
+ip addr show docker0
+```
+
+**NOTE** Your Docker interface name may be different from *docker0*.
+
+2. Run `examplesite` on Docker host IP
+
+```
+python3 scrapemeagain/scrapers/examplescraper/examplesite/app.py 172.17.0.1
+```
+
+**NOTE** Your Docker host IP may be different from *172.17.0.1*.
+
+3. Start `docker-compose`
+
+```
+python3 docker-compose.py -s examplescraper -c tests.integration.fake_config | docker-compose -f - up
+```
+
+**NOTE** A special config file path is provided: `-c tests.integration.fake_config`.
 
 
 ## System requirements
