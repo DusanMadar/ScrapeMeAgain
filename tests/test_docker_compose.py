@@ -1,20 +1,13 @@
 import unittest
+from unittest.mock import patch
 
 
 docker_compose = __import__("docker-compose")
 
 
 class DockerComposeTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # Dirty way to mock `DOCKER_HOST_IP`.
-        cls.original_docker_host_ip = docker_compose.DOCKER_HOST_IP
-        docker_compose.DOCKER_HOST_IP = "fake_docker_host_ip"
-
-    @classmethod
-    def tearDownClass(cls):
-        docker_compose.DOCKER_HOST_IP = cls.original_docker_host_ip
-
+    @patch("docker-compose.CURENT_DIR", "/fake_curent_dir")
+    @patch("docker-compose.DOCKER_HOST_IP", "fake_docker_host_ip")
     def test_construct_compose_dict(self):
         """
         Test `construct_compose_dict` returns expected compose dict.
@@ -43,10 +36,10 @@ class DockerComposeTestCase(unittest.TestCase):
                     ],
                     "hostname": "scp1",
                     "image": "scp:latest",
-                    "volumes": ["/home/dm/code/scrapemeagain:/scp"],
+                    "volumes": ["/fake_curent_dir:/scp"],
                     "build": {
-                        "context": "/home/dm/code/scrapemeagain",
-                        "dockerfile": "/home/dm/code/scrapemeagain/Dockerfile",
+                        "context": "/fake_curent_dir",
+                        "dockerfile": "/fake_curent_dir/Dockerfile",
                     },
                     "entrypoint": "/scp/scrapemeagain/dockerized/entrypoints/entrypoint.scp1.sh",
                 },
@@ -71,7 +64,7 @@ class DockerComposeTestCase(unittest.TestCase):
                     ],
                     "hostname": "scp2",
                     "image": "scp:latest",
-                    "volumes": ["/home/dm/code/scrapemeagain:/scp"],
+                    "volumes": ["/fake_curent_dir:/scp"],
                     "depends_on": ["scp1"],
                     "entrypoint": "/scp/scrapemeagain/dockerized/entrypoints/entrypoint.scpx.sh",
                 },
@@ -87,7 +80,7 @@ class DockerComposeTestCase(unittest.TestCase):
 
     def test_construct_compose_dict_nonexisting_scraper(self):
         """
-        Test `construct_compose_dict` raises `ModuleNotFoundError` for a\
+        Test `construct_compose_dict` raises `ModuleNotFoundError` for a
         nonexisting scraper.
         """
         with self.assertRaises(ModuleNotFoundError):
