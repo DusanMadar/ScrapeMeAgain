@@ -1,3 +1,4 @@
+import os
 import sys
 from time import sleep
 
@@ -5,8 +6,8 @@ from requests import get, RequestException
 
 
 if __name__ == "__main__":
-    host = sys.argv[1]
-    port = sys.argv[2]
+    host = os.environ.get("SERVICE_NAME_MASTER_SCRAPER")
+    port = sys.argv[1]
     url = "http://{host}:{port}/health/".format(host=host, port=port)
 
     i = 0

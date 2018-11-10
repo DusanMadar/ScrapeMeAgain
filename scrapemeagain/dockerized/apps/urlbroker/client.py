@@ -1,3 +1,5 @@
+import os
+
 from requests import get
 
 from scrapemeagain.config import Config
@@ -10,7 +12,7 @@ def _get_urls_range(endpoint):
     :returns tuple
     """
     url = "http://{host}:{port}/{endpoint}/".format(
-        host=Config.URLBROKER_HOST,
+        host=os.environ.get("SERVICE_NAME_MASTER_SCRAPER"),
         port=Config.URLBROKER_PORT,
         endpoint=endpoint,
     )

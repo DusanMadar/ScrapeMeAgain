@@ -6,12 +6,10 @@
 ScrapeMeAgain is a Python 3 powered web scraper. It uses multiprocessing to get the work done quicker and stores collected data in an [SQLite](http://www.sqlite.org/) database.
 
 
-## Usage
-
-### Basic
+## Basic
 You have to provide your own database table description and an actual scraper class which must follow the `BaseScraper` interface. See `scrapemeagain/scrapers/examplescraper` for more details.
 
-#### Run `examplescraper` locally
+### Run `examplescraper` locally
 
 1. Run `examplesite`
 
@@ -27,7 +25,7 @@ python3 scrapemeagain/scrapers/examplescraper/examplesite/app.py
 
 **NOTE** You may need to update your `PYTHONPATH`.
 
-### Dockerized
+## Dockerized
 
 With Docker it is possible to use multiple Tor IPs at the same time and, unless you abuse it, scrape data faster.
 
@@ -37,7 +35,7 @@ Your scraper must define `config.py` and `main_dockerized.py`. These two names a
 
 A dynamic `docker-compose` is responsible for orchestrating scraper instances. The idea is that the first scraper (`scp1`) is a `master` scraper and hence is the host for a couple of helper services which communicate over HTTP (see [`dockerized/apps`](https://github.com/DusanMadar/ScrapeMeAgain/tree/master/scrapemeagain/dockerized/apps)).
 
-#### Run `examplescraper` with Docker
+### Run `examplescraper` with Docker
 
 1. Get Docker host Ip
 

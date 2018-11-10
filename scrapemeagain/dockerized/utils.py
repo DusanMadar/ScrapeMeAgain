@@ -114,7 +114,7 @@ def wait_for_other_scrapers():
         if sraper_id == 1:
             continue
 
-        hostname = "scp{}".format(sraper_id)
+        hostname = os.environ.get("SERVICE_NAME_TEMPLATE").format(sraper_id)
         while True:
             if not scraper_is_running(hostname):
                 break

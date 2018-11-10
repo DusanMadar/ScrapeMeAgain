@@ -1,3 +1,5 @@
+import os
+
 from requests import get
 
 from scrapemeagain.config import Config
@@ -13,6 +15,8 @@ def check_ip_safeness(ip):
     :returns bool
     """
     url = "http://{host}:{port}/ip-is-safe/{ip}/".format(
-        host=Config.IPSTORE_HOST, port=Config.IPSTORE_PORT, ip=ip
+        host=os.environ.get("SERVICE_NAME_MASTER_SCRAPER"),
+        port=Config.IPSTORE_PORT,
+        ip=ip,
     )
     return get(url).json()["safe"]

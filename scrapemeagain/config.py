@@ -55,18 +55,15 @@ class Config:
     #
     # Orchestration.
     SCRAPERS_COUNT = 1
-    MASTER_SCRAPER = "scp1"
 
     #
     # IpStore.
     IPSTORE_PORT = 5000
-    IPSTORE_HOST = MASTER_SCRAPER
     IPSTORE_REUSE_THRESHOLD = REUSE_THRESHOLD * SCRAPERS_COUNT
 
     #
     # URLBroker.
     URLBROKER_PORT = 6000
-    URLBROKER_HOST = MASTER_SCRAPER
     # NOTE each scraper MUST set a custom `ListUrlsBroker` subclass in
     # 'scrapemeagain.scrapers.{your scraper}.config.URLBROKER_CLASS'
     URLBROKER_CLASS = (
@@ -76,7 +73,6 @@ class Config:
     #
     # DataStore.
     DATASTORE_PORT = 7000
-    DATASTORE_HOST = MASTER_SCRAPER
     # NOTE set 'scrapemeagain.scrapers.{your scraper}.config.DATASTORE_CLASS'
     # if your scraper adds custom functionality to `DataStoreDatabaser`.
     DATASTORE_DATABASER_CLASS = "scrapemeagain.databaser.DataStoreDatabaser"
@@ -84,4 +80,3 @@ class Config:
     #
     # Healthcheck.
     HEALTHCHECK_PORT = 8000
-    HEALTHCHECK_HOST = MASTER_SCRAPER

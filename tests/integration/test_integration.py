@@ -66,8 +66,32 @@ class IntegrationTestCase(unittest.TestCase):
         p = subprocess.Popen(command.split(" "), stdin=subprocess.PIPE)
         p.communicate(input=bytes(compose_file, "utf-8"))
 
-    def _copy_scraper_files(self, tmp_dir_path):
-        command = f"docker cp scp1:/tmp/test-examplescraper {tmp_dir_path}"
+    def _get_container_name(self, name_pattern, queue):
+        def get_running_container_name(name_pattern, queue):
+            command = "docker ps | grep {}".format(name_pattern)
+            scraper_name = None
+
+            while scraper_name is None:
+                try:
+                    out = subprocess.check_output(command, shell=True)
+                    out = out.strip()
+                    scraper_name = out.split()[-1]
+                except subprocess.CalledProcessError:
+                    pass
+
+                sleep(1)
+
+            queue.put(scraper_name)
+
+        p = multiprocessing.Process(
+            target=get_running_container_name, args=(name_pattern, queue)
+        )
+        p.start()
+
+        return p
+
+    def _copy_scraper_files(self, container_name, tmp_dir_path):
+        command = f"docker cp {container_name}:/tmp/test-examplescraper {tmp_dir_path}"  # noqa
         subprocess.check_call(command.split(" "))
 
     def validate_db(self, db_path):
@@ -93,14 +117,23 @@ class IntegrationTestCase(unittest.TestCase):
             print("Failed to start examplesite")
             return
 
+        container_name_queue = multiprocessing.Queue()
+        container_name_getter = self._get_container_name(
+            "examplescraper-scp1", container_name_queue
+        )
+
         try:
             self._run_examplescraper_compose()
         finally:
             examplesite.terminate()
             examplesite.join()
 
+            container_name_getter.terminate()
+            container_name_getter.join()
+
         with tempfile.TemporaryDirectory() as tmp_dir_path:
-            self._copy_scraper_files(tmp_dir_path)
+            container_name = container_name_queue.get().decode("utf-8")
+            self._copy_scraper_files(container_name, tmp_dir_path)
 
             expected_db_file = os.path.join(
                 tmp_dir_path, "test-examplescraper", "example.sqlite"

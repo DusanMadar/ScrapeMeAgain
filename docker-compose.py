@@ -48,26 +48,27 @@ parser.add_argument(
 
 
 def create_scraper_service(sraper_id, scraper_package, scraper_config):
-    service_name = "scp{}".format(sraper_id)
+    service_name_template = "{0}-scp".format(scraper_package)
+    service_name_template += "{}"
+    # The first scraper service is always the master one.
+    service_name_master = service_name_template.format(1)
+    service_name = service_name_template.format(sraper_id)
+
     service_settings = {
-        "container_name": service_name,
         "environment": [
+            "SERVICE_NAME_TEMPLATE={}".format(service_name_template),
+            "SERVICE_NAME_MASTER_SCRAPER={}".format(service_name_master),
+            "DOCKER_HOST_IP={}".format(DOCKER_HOST_IP),
             "TOR_PORT={}".format(Config.TOR_PORT),
             "TOR_PASSWORD={}".format(Config.TOR_PASSWORD),
             "PRIVOXY_PORT={}".format(Config.PRIVOXY_PORT),
             "PRIVOXY_HOST={}".format(Config.PRIVOXY_HOST),
             "IPSTORE_PORT={}".format(Config.IPSTORE_PORT),
-            "IPSTORE_HOST={}".format(Config.IPSTORE_HOST),
             "URLBROKER_PORT={}".format(Config.URLBROKER_PORT),
-            "URLBROKER_HOST={}".format(Config.URLBROKER_HOST),
             "DATASTORE_PORT={}".format(Config.DATASTORE_PORT),
-            "DATASTORE_HOST={}".format(Config.DATASTORE_HOST),
             "HEALTHCHECK_PORT={}".format(Config.HEALTHCHECK_PORT),
-            "HEALTHCHECK_HOST={}".format(Config.HEALTHCHECK_HOST),
             "SCRAPER_PACKAGE={}".format(scraper_package),
-            "DOCKER_HOST_IP={}".format(DOCKER_HOST_IP),
         ],
-        "hostname": service_name,
         "image": "scp:latest",
         "volumes": ["{}:{}".format(CURENT_DIR, CONTAINER_SRCDIR)],
     }
@@ -87,7 +88,9 @@ def create_scraper_service(sraper_id, scraper_package, scraper_config):
     else:
         # Worker specific settings.
         entrypoint = ENTRYPOINT_PATH_TEMPLATE.format("scpx")
-        service_settings["depends_on"] = ["scp{}".format(sraper_id - 1)]
+        service_settings["depends_on"] = [
+            service_name_template.format(sraper_id - 1)
+        ]
 
     service_settings["entrypoint"] = entrypoint
 
