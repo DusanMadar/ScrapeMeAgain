@@ -69,7 +69,7 @@ def create_scraper_service(sraper_id, scraper_package, scraper_config):
             "HEALTHCHECK_PORT={}".format(Config.HEALTHCHECK_PORT),
             "SCRAPER_PACKAGE={}".format(scraper_package),
         ],
-        "image": "scp:latest",
+        "image": "dusanmadar/scrapemeagain:1.0.0",
         "volumes": ["{}:{}".format(CURENT_DIR, CONTAINER_SRCDIR)],
     }
 
@@ -81,10 +81,6 @@ def create_scraper_service(sraper_id, scraper_package, scraper_config):
     if sraper_id == 1:
         # Master scraper specific settings.
         entrypoint = ENTRYPOINT_PATH_TEMPLATE.format("scp1")
-        service_settings["build"] = {
-            "context": CURENT_DIR,
-            "dockerfile": os.path.join(CURENT_DIR, "Dockerfile"),
-        }
     else:
         # Worker specific settings.
         entrypoint = ENTRYPOINT_PATH_TEMPLATE.format("scpx")

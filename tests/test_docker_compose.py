@@ -24,12 +24,8 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT = {
                 "SCRAPER_PACKAGE=examplescraper",
                 "SCRAPER_CONFIG=tests.integration.fake_config",
             ],
-            "image": "scp:latest",
+            "image": "dusanmadar/scrapemeagain:1.0.0",
             "volumes": ["/fake_curent_dir:/scp"],
-            "build": {
-                "context": "/fake_curent_dir",
-                "dockerfile": "/fake_curent_dir/Dockerfile",
-            },
             "entrypoint": "/scp/scrapemeagain/dockerized/entrypoints/entrypoint.scp1.sh",  # noqa
         },
         "examplescraper-scp2": {
@@ -48,7 +44,7 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT = {
                 "SCRAPER_PACKAGE=examplescraper",
                 "SCRAPER_CONFIG=tests.integration.fake_config",
             ],
-            "image": "scp:latest",
+            "image": "dusanmadar/scrapemeagain:1.0.0",
             "volumes": ["/fake_curent_dir:/scp"],
             "depends_on": ["examplescraper-scp1"],
             "entrypoint": "/scp/scrapemeagain/dockerized/entrypoints/entrypoint.scpx.sh",  # noqa
