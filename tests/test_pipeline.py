@@ -1,4 +1,3 @@
-import unittest
 from unittest.mock import patch, PropertyMock
 
 from requests import Response
