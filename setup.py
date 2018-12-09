@@ -8,7 +8,7 @@ description = "Yet another Python web scraping application"
 
 
 setup(
-    version="1.0.0",
+    version="1.0.1",
     name="scrapemeagain",
     url="https://github.com/DusanMadar/ScrapeMeAgain",
     author="Dusan Madar",

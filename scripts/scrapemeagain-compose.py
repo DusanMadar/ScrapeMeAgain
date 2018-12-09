@@ -5,17 +5,18 @@
 Dynamic `docker-compose.yml` based on settings defined in `config`.
 
 Usage:
-    `python3 scrapemeagain-compose.py -s <scraper> [-c <path.to.config>] | docker-compose -f - up`
+    `python3 scrapemeagain-compose.py -s <scraper> [-c <path.to.some.config>] | docker-compose -f - up`
 
     Example:
-    $ cd scrapemeagain
-    $ python3 scrapemeagain-compose.py -s /tmp/examplescraper | docker-compose -f - up
-    $ python3 scrapemeagain-compose.py -s /tmp/examplescraper -c tests.integration.fake_config | docker-compose -f - up
+    $ cd ../
+    $ python3 scrapemeagain-compose.py -s $(pwd)/examples/examplescraper | docker-compose -f - up
+    $ python3 scrapemeagain-compose.py -s $(pwd)/examples/examplescraper -c tests.integration.fake_config | docker-compose -f - up
 """  # noqa
 
 
 import argparse
 import os
+import sys
 
 import yaml
 
@@ -38,9 +39,9 @@ ENTRYPOINT_PATH_TEMPLATE = (
 DOCKER_HOST_IP = get_inf_ip_address(Config.DOCKER_INTERFACE_NAME)
 
 
-def create_scraper_service(sraper_id, scraper_path, scraper_config):
-    scraper_package = scraper_path.split(os.sep)[-1]
-
+def create_scraper_service(
+    sraper_id, scraper_package, scraper_path, scraper_config
+):
     service_name_template = "{0}-scp".format(scraper_package)
     service_name_template += "{}"
     # The first scraper service is always the master one.
@@ -92,7 +93,9 @@ def create_scraper_service(sraper_id, scraper_path, scraper_config):
 
 def construct_compose_dict(scraper_path, scraper_config=None):
     # Apply scraper specific config.
-    apply_scraper_config(scraper_path.replace(os.sep, "."), scraper_config)
+    scraper_package = scraper_path.split(os.sep)[-1]
+    prepare_for_apply_scraper_config(scraper_path)
+    apply_scraper_config(scraper_package, scraper_config)
 
     docker_compose = {"version": "3", "services": {}}
 
@@ -100,10 +103,16 @@ def construct_compose_dict(scraper_path, scraper_config=None):
         sraper_id += 1
 
         docker_compose["services"].update(
-            create_scraper_service(sraper_id, scraper_path, scraper_config)
+            create_scraper_service(
+                sraper_id, scraper_package, scraper_path, scraper_config
+            )
         )
 
     return docker_compose
+
+
+def prepare_for_apply_scraper_config(scraper_path):
+    sys.path.insert(0, os.path.dirname(scraper_path))
 
 
 def main():
@@ -112,13 +121,19 @@ def main():
         "-s",
         "--scraper",
         required=True,
-        help="Absolute path to scraper dir; e.g. '/tmp/examplescraper'.",
+        help=(
+            "Absolute path to scraper package dir; e.g. '/tmp/examplescraper'."
+        ),
     )
     parser.add_argument(
         "-c",
         "--config",
         required=False,
-        help="Config module dotted path.",
+        help=(
+            "Dotted path to a specific (not 'config.py') config module; "
+            "e.g. 'examplescraper.more_configs.test_config'. The path must be"
+            "importbale locally and in the container."
+        ),
         default=None,
     )
 
