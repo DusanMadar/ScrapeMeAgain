@@ -39,7 +39,7 @@ class ExampleScraper(BaseScraper):
 
     def get_lists_count(self):
         # We only want first 10 lists.
-        return 110
+        return 10
 
     def get_item_urls(self, response):
         links = []

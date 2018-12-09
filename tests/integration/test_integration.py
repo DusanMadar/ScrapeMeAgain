@@ -103,8 +103,8 @@ class IntegrationTestCase(unittest.TestCase):
         self.assertIn(expected_table_name, engine.table_names())
 
         sql = f"SELECT count(*) FROM {expected_table_name}"
-        # 1100 = 110 list pages * 10 post links per list page.
-        self.assertEqual(engine.execute(sql).fetchone()[0], 1100)
+        # 100 = 10 list pages * 10 post links per list page.
+        self.assertEqual(engine.execute(sql).fetchone()[0], 100)
 
     def test_examplescraper_works(self):
         """
