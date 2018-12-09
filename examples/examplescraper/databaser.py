@@ -1,6 +1,6 @@
 from scrapemeagain import databaser
 
-from scrapemeagain.scrapers.examplescraper.scraper import ExampleScraper
+from examplescraper.scraper import ExampleScraper
 
 
 class DataStoreDatabaser(databaser.DataStoreDatabaser):

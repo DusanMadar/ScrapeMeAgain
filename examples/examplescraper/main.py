@@ -3,10 +3,11 @@ from toripchanger import TorIpChanger
 from scrapemeagain.config import Config
 from scrapemeagain.databaser import Databaser
 from scrapemeagain.pipeline import Pipeline
-from scrapemeagain.scrapers.examplescraper.scraper import ExampleScraper
 from scrapemeagain.utils import services
 from scrapemeagain.utils.logger import setup_logging
 from scrapemeagain.utils.useragents import get_user_agents
+
+from examplescraper.scraper import ExampleScraper
 
 
 # Configure TorIpChanger.

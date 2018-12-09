@@ -9,23 +9,22 @@ import unittest
 import yaml
 
 from sqlalchemy import create_engine
-
 from scrapemeagain.dockerized.utils import get_inf_ip_address
-from scrapemeagain.scrapers.examplescraper.config import Config
-from scrapemeagain.scrapers.examplescraper.examplesite.app import app
 from scrapemeagain.utils.alnum import DATE_FORMAT
 
-docker_compose = __import__("docker-compose")
+from examplescraper.config import Config
+from examplescraper.examplesite.app import app as examplesite_app
+from tests import REPO_DIR, EXAMPLESCRAPER_DIR
+from tests.utils import import_docker_compose
+
+
+docker_compose = import_docker_compose()
 
 
 DOCKER_HOST_IP = get_inf_ip_address(Config.DOCKER_INTERFACE_NAME)
 
-USER_AGENTS_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-    "useragents.json",
-)
+USER_AGENTS_FILE = os.path.join(REPO_DIR, "useragents.json")
 USER_AGENTS_FILE_BACKUP = USER_AGENTS_FILE + ".bak"
-
 FAKE_USER_AGENTS_JSON = {
     "date": datetime.today().strftime(DATE_FORMAT),
     "useragents": ["User Agent 1", "User Agent 2", "User Agent 3"],
@@ -39,8 +38,9 @@ class IntegrationTestCase(unittest.TestCase):
         if os.path.exists(USER_AGENTS_FILE):
             os.rename(USER_AGENTS_FILE, USER_AGENTS_FILE_BACKUP)
 
-        with open(USER_AGENTS_FILE, "w") as outfile:
-            json.dump(FAKE_USER_AGENTS_JSON, outfile)
+        if not os.path.exists(USER_AGENTS_FILE_BACKUP):
+            with open(USER_AGENTS_FILE, "w") as outfile:
+                json.dump(FAKE_USER_AGENTS_JSON, outfile)
 
     @classmethod
     def tearDownClass(cls):
@@ -49,22 +49,22 @@ class IntegrationTestCase(unittest.TestCase):
 
     def _run_examplesite(self):
         p = multiprocessing.Process(
-            target=app.run, args=(DOCKER_HOST_IP, 9090)
+            target=examplesite_app.run, args=(DOCKER_HOST_IP, 9090)
         )
         p.start()
 
         return p
 
     def _run_examplescraper_compose(self):
-        compose_file = yaml.dump(
+        scrapemeagain_compose = yaml.dump(
             docker_compose.construct_compose_dict(
-                "examplescraper", "tests.integration.fake_config"
+                EXAMPLESCRAPER_DIR, "tests.integration.fake_config"
             )
         )
         # ' - ' meaning: https://unix.stackexchange.com/a/16364/266262.
         command = "docker-compose -f - up --force-recreate"
         p = subprocess.Popen(command.split(" "), stdin=subprocess.PIPE)
-        p.communicate(input=bytes(compose_file, "utf-8"))
+        p.communicate(input=bytes(scrapemeagain_compose, "utf-8"))
 
     def _get_container_name(self, name_pattern, queue):
         def get_running_container_name(name_pattern, queue):

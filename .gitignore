@@ -2,8 +2,12 @@
 __pycache__/
 *.py[cod]
 
-# Backup files
-*~
+# packaging directories
+build/
+dist/
+*.egg-info/
+*.eggs/
+*.cache/
 
 # Scrapemeagain specific
 data/

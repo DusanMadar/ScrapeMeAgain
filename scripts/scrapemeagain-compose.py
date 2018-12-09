@@ -1,14 +1,18 @@
+#!/usr/bin/env python3
+
+
 """
 Dynamic `docker-compose.yml` based on settings defined in `config`.
 
 Usage:
-    `python3 docker-compose.py -s <scraper> [-c <path.to.config>] | docker-compose -f - up`
+    `python3 scrapemeagain-compose.py -s <scraper> [-c <path.to.config>] | docker-compose -f - up`
 
     Example:
     $ cd scrapemeagain
-    $ python3 docker-compose.py -s examplescraper | docker-compose -f - up
-    $ python3 docker-compose.py -s examplescraper -c tests.integration.fake_config | docker-compose -f - up
+    $ python3 scrapemeagain-compose.py -s /tmp/examplescraper | docker-compose -f - up
+    $ python3 scrapemeagain-compose.py -s /tmp/examplescraper -c tests.integration.fake_config | docker-compose -f - up
 """  # noqa
+
 
 import argparse
 import os
@@ -21,33 +25,22 @@ from scrapemeagain.dockerized.utils import (
     get_inf_ip_address,
 )
 
-CONTAINER_SRCDIR = "/scp"  # Must match `SRCDIR` env variable in Dockerfile.
-CURENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Must match Dockerfile's `SCP_DIR` env variable.
+SCP_DIR = "/scp"
+# Must match Dockerfile's `APP_SRC_DIR` env variable.
+APP_SRC_DIR = "/scrapemeagain/scrapemeagain"
 
 ENTRYPOINT_PATH_TEMPLATE = (
-    CONTAINER_SRCDIR + "/scrapemeagain/dockerized/entrypoints/entrypoint.{}.sh"
+    APP_SRC_DIR + "/dockerized/entrypoints/entrypoint.{}.sh"
 )
+
 
 DOCKER_HOST_IP = get_inf_ip_address(Config.DOCKER_INTERFACE_NAME)
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "-s",
-    "--scraper",
-    required=True,
-    help="Scraper package name, e.g. 'examplescraper'.",
-)
-parser.add_argument(
-    "-c",
-    "--config",
-    required=False,
-    help="Config module dotted path.",
-    default=None,
-)
+def create_scraper_service(sraper_id, scraper_path, scraper_config):
+    scraper_package = scraper_path.split(os.sep)[-1]
 
-
-def create_scraper_service(sraper_id, scraper_package, scraper_config):
     service_name_template = "{0}-scp".format(scraper_package)
     service_name_template += "{}"
     # The first scraper service is always the master one.
@@ -69,8 +62,12 @@ def create_scraper_service(sraper_id, scraper_package, scraper_config):
             "HEALTHCHECK_PORT={}".format(Config.HEALTHCHECK_PORT),
             "SCRAPER_PACKAGE={}".format(scraper_package),
         ],
-        "image": "dusanmadar/scrapemeagain:1.0.0",
-        "volumes": ["{}:{}".format(CURENT_DIR, CONTAINER_SRCDIR)],
+        "image": "dusanmadar/scrapemeagain:1.1.0",
+        "volumes": [
+            "{}:{}".format(
+                scraper_path, os.path.join(SCP_DIR, scraper_package)
+            )
+        ],
     }
 
     if scraper_config is not None:
@@ -93,9 +90,9 @@ def create_scraper_service(sraper_id, scraper_package, scraper_config):
     return {service_name: service_settings}
 
 
-def construct_compose_dict(scraper_package, scraper_config=None):
+def construct_compose_dict(scraper_path, scraper_config=None):
     # Apply scraper specific config.
-    apply_scraper_config(scraper_package, scraper_config)
+    apply_scraper_config(scraper_path.replace(os.sep, "."), scraper_config)
 
     docker_compose = {"version": "3", "services": {}}
 
@@ -103,12 +100,31 @@ def construct_compose_dict(scraper_package, scraper_config=None):
         sraper_id += 1
 
         docker_compose["services"].update(
-            create_scraper_service(sraper_id, scraper_package, scraper_config)
+            create_scraper_service(sraper_id, scraper_path, scraper_config)
         )
 
     return docker_compose
 
 
-if __name__ == "__main__":
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-s",
+        "--scraper",
+        required=True,
+        help="Absolute path to scraper dir; e.g. '/tmp/examplescraper'.",
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        required=False,
+        help="Config module dotted path.",
+        default=None,
+    )
+
     args = parser.parse_args()
     print(yaml.dump(construct_compose_dict(args.scraper, args.config)))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,8 +1,10 @@
 import unittest
 from unittest.mock import patch
 
+from tests.utils import import_docker_compose
 
-docker_compose = __import__("docker-compose")
+
+docker_compose = import_docker_compose()
 
 
 EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT = {
@@ -24,9 +26,9 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT = {
                 "SCRAPER_PACKAGE=examplescraper",
                 "SCRAPER_CONFIG=tests.integration.fake_config",
             ],
-            "image": "dusanmadar/scrapemeagain:1.0.0",
-            "volumes": ["/fake_curent_dir:/scp"],
-            "entrypoint": "/scp/scrapemeagain/dockerized/entrypoints/entrypoint.scp1.sh",  # noqa
+            "image": "dusanmadar/scrapemeagain:1.1.0",
+            "volumes": ["/tmp/examplescraper:/scp/examplescraper"],
+            "entrypoint": "/scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scp1.sh",  # noqa
         },
         "examplescraper-scp2": {
             "environment": [
@@ -44,18 +46,17 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT = {
                 "SCRAPER_PACKAGE=examplescraper",
                 "SCRAPER_CONFIG=tests.integration.fake_config",
             ],
-            "image": "dusanmadar/scrapemeagain:1.0.0",
-            "volumes": ["/fake_curent_dir:/scp"],
+            "image": "dusanmadar/scrapemeagain:1.1.0",
+            "volumes": ["/tmp/examplescraper:/scp/examplescraper"],
             "depends_on": ["examplescraper-scp1"],
-            "entrypoint": "/scp/scrapemeagain/dockerized/entrypoints/entrypoint.scpx.sh",  # noqa
+            "entrypoint": "/scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scpx.sh",  # noqa
         },
     },
 }
 
 
 class DockerComposeTestCase(unittest.TestCase):
-    @patch("docker-compose.CURENT_DIR", "/fake_curent_dir")
-    @patch("docker-compose.DOCKER_HOST_IP", "fake_docker_host_ip")
+    @patch("scrapemeagain-compose.DOCKER_HOST_IP", "fake_docker_host_ip")
     def test_construct_compose_dict(self):
         """
         Test `construct_compose_dict` returns expected compose dict.
@@ -63,7 +64,7 @@ class DockerComposeTestCase(unittest.TestCase):
         self.assertEqual(
             EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT,
             docker_compose.construct_compose_dict(
-                "examplescraper", "tests.integration.fake_config"
+                "/tmp/examplescraper", "tests.integration.fake_config"
             ),
         )
 
@@ -73,4 +74,4 @@ class DockerComposeTestCase(unittest.TestCase):
         nonexisting scraper.
         """
         with self.assertRaises(ModuleNotFoundError):
-            docker_compose.construct_compose_dict("nonexisting")
+            docker_compose.construct_compose_dict("/nonexisting")

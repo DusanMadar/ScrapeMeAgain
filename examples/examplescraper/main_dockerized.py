@@ -4,12 +4,11 @@ from scrapemeagain.dockerized.utils import (
     get_class_from_path,
 )
 from scrapemeagain.pipeline import DockerizedPipeline
-from scrapemeagain.scrapers.examplescraper.databaser import DockerizedDatabaser
-from scrapemeagain.scrapers.examplescraper.scraper import (
-    DockerizedExampleScraper,
-)
 from scrapemeagain.utils.logger import setup_logging
 from scrapemeagain.utils.useragents import get_user_agents
+
+from examplescraper.databaser import DockerizedDatabaser
+from examplescraper.scraper import DockerizedExampleScraper
 
 
 # Update config, setup logging and useragents.

@@ -77,9 +77,7 @@ def apply_scraper_config(scraper_package=None, scraper_config=None):
     if scraper_package is None:
         scraper_package = os.environ.get("SCRAPER_PACKAGE")
 
-    get_class_from_path(
-        "scrapemeagain.scrapers.{}.config".format(scraper_package)
-    )
+    get_class_from_path("{}.config".format(scraper_package))
 
 
 def scraper_is_running(hostname):

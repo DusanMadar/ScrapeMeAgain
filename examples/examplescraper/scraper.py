@@ -1,14 +1,14 @@
 import os
 
 from bs4 import BeautifulSoup
-
 from scrapemeagain.dockerized.apps.urlbroker import (
     client as urlbroker_client,
     urlbrokers,
 )
 from scrapemeagain.dockerized.utils import inside_condainer
 from scrapemeagain.scrapers.basescraper import BaseScraper
-from scrapemeagain.scrapers.examplescraper.model import ExampleDataTable
+
+from examplescraper.model import ExampleDataTable
 
 
 class ExampleScraper(BaseScraper):
