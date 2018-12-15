@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/DusanMadar/ScrapeMeAgain.svg?branch=master)](https://travis-ci.org/DusanMadar/ScrapeMeAgain)
+[![PyPI version](https://badge.fury.io/py/scrapemeagain.svg)](https://badge.fury.io/py/scrapemeagain)
 
 
 # ScrapeMeAgain
