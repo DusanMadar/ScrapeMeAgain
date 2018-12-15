@@ -7,8 +7,14 @@ sudo: required
 services:
   - docker
 
+install:
+  - pip install coveralls
+
 script:
-  - python setup.py test
+  - coverage run --source=scrapemeagain setup.py test
+
+after_success:
+  - coveralls
 
 notifications:
   email: false
