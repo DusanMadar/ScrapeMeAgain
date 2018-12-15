@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/DusanMadar/ScrapeMeAgain.svg?branch=master)](https://travis-ci.org/DusanMadar/ScrapeMeAgain)
+[![Coverage Status](https://coveralls.io/repos/github/DusanMadar/ScrapeMeAgain/badge.svg?branch=master)](https://coveralls.io/github/DusanMadar/ScrapeMeAgain?branch=master)
 [![PyPI version](https://badge.fury.io/py/scrapemeagain.svg)](https://badge.fury.io/py/scrapemeagain)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
 
 # ScrapeMeAgain
