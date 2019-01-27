@@ -26,7 +26,7 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT = {
                 "SCRAPER_PACKAGE=examplescraper",
                 "SCRAPER_CONFIG=tests.integration.fake_config",
             ],
-            "image": "dusanmadar/scrapemeagain:1.1.0",
+            "image": "dusanmadar/scrapemeagain:1.1.1",
             "volumes": ["/tmp/examplescraper:/scp/examplescraper"],
             "entrypoint": "/scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scp1.sh",  # noqa
         },
@@ -46,7 +46,7 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE_DICT = {
                 "SCRAPER_PACKAGE=examplescraper",
                 "SCRAPER_CONFIG=tests.integration.fake_config",
             ],
-            "image": "dusanmadar/scrapemeagain:1.1.0",
+            "image": "dusanmadar/scrapemeagain:1.1.1",
             "volumes": ["/tmp/examplescraper:/scp/examplescraper"],
             "depends_on": ["examplescraper-scp1"],
             "entrypoint": "/scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scpx.sh",  # noqa

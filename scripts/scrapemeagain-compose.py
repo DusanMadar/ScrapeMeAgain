@@ -63,7 +63,7 @@ def create_scraper_service(
             "HEALTHCHECK_PORT={}".format(Config.HEALTHCHECK_PORT),
             "SCRAPER_PACKAGE={}".format(scraper_package),
         ],
-        "image": "dusanmadar/scrapemeagain:1.1.0",
+        "image": "dusanmadar/scrapemeagain:1.1.1",
         "volumes": [
             "{}:{}".format(
                 scraper_path, os.path.join(SCP_DIR, scraper_package)

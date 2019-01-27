@@ -4,8 +4,6 @@
 import logging
 import os
 
-import requests
-
 from scrapemeagain.config import Config
 from scrapemeagain.utils.alnum import get_current_date
 
@@ -34,10 +32,6 @@ def setup_logging(logger_name):
         level=log_level,
     )
 
-    # Silence `requests` and `stem` modules logging.
-    requests_log = logging.getLogger("requests")
-    requests_log.setLevel(logging.WARNING)
-    requests.packages.urllib3.disable_warnings()
-
+    # Silence `stem` modules logging.
     stem_log = logging.getLogger("stem")
     stem_log.setLevel(logging.WARNING)

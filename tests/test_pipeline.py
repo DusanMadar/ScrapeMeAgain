@@ -1,20 +1,16 @@
 from unittest.mock import patch, PropertyMock
 
-from requests import Response
 
 from tests.pipeline_base import TestPipelineBase
-from scrapemeagain.pipeline import EXIT, DUMP_URLS_BUCKET
-from scrapemeagain.utils.http import get
+from scrapemeagain.pipeline import EXIT, DUMP_URLS_BUCKET, DockerizedPipeline
+from scrapemeagain.utils.http import Response
 
 
 def create_responses(mock_urls, mock_statuses):
     responses = []
 
     for mock_url, mock_status in zip(mock_urls, mock_statuses):
-        response = Response()
-        response.url = mock_url
-        response.status_code = mock_status
-
+        response = Response(mock_url, mock_status, None)
         responses.append(response)
 
     return responses
@@ -23,20 +19,28 @@ def create_responses(mock_urls, mock_statuses):
 class TestPipeline(TestPipelineBase):
     @patch("scrapemeagain.pipeline.Value")
     @patch("scrapemeagain.pipeline.Event")
-    @patch("scrapemeagain.pipeline.Pool")
+    @patch("scrapemeagain.pipeline.asyncio.get_event_loop")
+    @patch("scrapemeagain.pipeline.http.setup_aiohttp_client")
     @patch("scrapemeagain.pipeline.Queue")
     def test_prepare_multiprocessing(
-        self, mock_queue, mock_pool, mock_event, mock_value
+        self,
+        mock_queue,
+        mock_setup_aiohttp_client,
+        mock_get_event_loop,
+        mock_event,
+        mock_value,
     ):
         """Test 'prepare_multiprocessing' initializes all necessary
         multiprocessing objects.
         """
         self.pipeline.prepare_multiprocessing()
 
-        self.assertTrue(mock_queue.call_count, 3)
-        mock_pool.assert_called_once_with(self.pipeline.scrape_processes)
-        self.assertTrue(mock_event.call_count, 2)
-        self.assertTrue(mock_value.call_count, 2)
+        self.assertEqual(mock_queue.call_count, 3)
+        self.assertEqual(mock_event.call_count, 3)
+        self.assertEqual(mock_value.call_count, 3)
+
+        self.assertEqual(mock_get_event_loop.call_count, 1)
+        self.assertEqual(mock_setup_aiohttp_client.call_count, 1)
 
     @patch("scrapemeagain.pipeline.get_current_datetime")
     @patch("scrapemeagain.pipeline.logging")
@@ -117,7 +121,7 @@ class TestPipeline(TestPipelineBase):
         )
         mock_sleep.assert_called_once_with(1)
         self.pipeline.producing_urls_in_progress.set.assert_called_once_with()
-        self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()
+        self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()  # noqa
 
     @patch("scrapemeagain.pipeline.Pipeline.inform")
     @patch("scrapemeagain.pipeline.time.sleep")
@@ -148,9 +152,7 @@ class TestPipeline(TestPipelineBase):
     def test_classify_response_ok(self):
         """Test '_classify_response' puts an OK response to
         'response_queue'."""
-        mock_response_ok = Response()
-        mock_response_ok.url = "url1"
-        mock_response_ok.status_code = 200
+        mock_response_ok = Response("url1", 200, None)
 
         self.pipeline._classify_response(mock_response_ok)
 
@@ -165,9 +167,7 @@ class TestPipeline(TestPipelineBase):
     def test_classify_response_not_ok(self):
         """Test '_classify_response' puts a non OK response URL back to
         'url_queue'."""
-        mock_response_not_ok = Response()
-        mock_response_not_ok.url = "url1"
-        mock_response_not_ok.status_code = 500
+        mock_response_not_ok = Response("url1", 500, None)
 
         self.pipeline._classify_response(mock_response_not_ok)
 
@@ -185,13 +185,13 @@ class TestPipeline(TestPipelineBase):
         """Test '_actually_get_html' fires requests for given URLs."""
         mock_urls = ["url1", "url2", "url3"]
         mock_url_statuses = [200, 500, 200]
-        self.pipeline.pool.map.return_value = create_responses(
+        self.pipeline.loop.run_until_complete.return_value = create_responses(
             mock_urls, mock_url_statuses
         )
 
         self.pipeline._actually_get_html(mock_urls)
 
-        self.pipeline.pool.map.assert_called_once_with(get, mock_urls)
+        self.pipeline.loop.run_until_complete.assert_called_once()
         self.assertEqual(mock_classify_response.call_count, len(mock_urls))
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()
@@ -201,11 +201,11 @@ class TestPipeline(TestPipelineBase):
     @patch("scrapemeagain.pipeline.logging")
     def test_actually_get_html_fails(self, mock_logging):
         """Test '_actually_get_html' logs an exception message on fail."""
-        self.pipeline.pool.map.side_effect = ValueError
+        self.pipeline.loop.run_until_complete.side_effect = ValueError
 
         self.pipeline._actually_get_html(None)
 
-        self.pipeline.pool.map.assert_called_once_with(get, None)
+        self.pipeline.loop.run_until_complete.assert_not_called()
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()
         mock_logging.error.assert_called_once_with("Failed scraping URLs")
@@ -213,7 +213,10 @@ class TestPipeline(TestPipelineBase):
 
     @patch("scrapemeagain.pipeline.Pipeline._actually_get_html")
     @patch("scrapemeagain.pipeline.Pipeline.change_ip")
-    def test_get_html(self, mock_change_ip, mock_actually_get_html):
+    @patch("scrapemeagain.pipeline.http.setup_aiohttp_client")
+    def test_get_html(
+        self, mock_setup_aiohttp_client, mock_change_ip, mock_actually_get_html
+    ):
         """Test 'get_html' populates and passes URL bulks for processing."""
         mock_urls = ["url1", "url2", "url3"]
         self.pipeline.url_queue.get.side_effect = (
@@ -229,11 +232,12 @@ class TestPipeline(TestPipelineBase):
         mock_change_ip.assert_called_once_with()
         mock_actually_get_html.assert_called_once_with(mock_urls)
 
+        # Check `manage_aiohttp_client` context manager closes the client.
+        mock_setup_aiohttp_client.return_value.close.assert_called_once_with()
+
     def test_scrape_data_item_urls(self):
         """Test '_scrape_data' gets item URLs from a list page."""
-        mock_item_urls_response = Response()
-        mock_item_urls_response.url = "url?search=1"
-        mock_item_urls_response.status_code = 200
+        mock_item_urls_response = Response("url?search=1", 200, None)
 
         self.pipeline.scraper.list_url_template = "url?search="
         self.pipeline.scraper.get_item_urls.return_value = []
@@ -249,9 +253,7 @@ class TestPipeline(TestPipelineBase):
 
     def test_scrape_data_item_properties(self):
         """Test '_scrape_data' gets item properties from an item page."""
-        mock_item_response = Response()
-        mock_item_response.url = "url-item-1"
-        mock_item_response.status_code = 200
+        mock_item_response = Response("url-item-1", 200, None)
 
         self.pipeline.scraper.list_url_template = "url?search="
         self.pipeline.scraper.get_item_properties.return_value = {}
@@ -270,9 +272,7 @@ class TestPipeline(TestPipelineBase):
         """Test '_actually_collect_data' populates 'data_queue'."""
         mock_scrape_data.return_value = {"key": "value"}
 
-        mock_item_response = Response()
-        mock_item_response.url = "url-item-1"
-        mock_item_response.status_code = 200
+        mock_item_response = Response("url-item-1", 200, None)
 
         self.pipeline._actually_collect_data(mock_item_response)
 
@@ -286,9 +286,7 @@ class TestPipeline(TestPipelineBase):
         """Test '_actually_collect_data' logs an exception message on fail."""
         mock_scrape_data.side_effect = ValueError
 
-        mock_item_response = Response()
-        mock_item_response.url = "url-item-1"
-        mock_item_response.status_code = 200
+        mock_item_response = Response("url-item-1", 200, None)
 
         self.pipeline._actually_collect_data(mock_item_response)
 
@@ -584,3 +582,13 @@ class TestPipeline(TestPipelineBase):
         mock_employ_worker.assert_any_call(self.pipeline.switch_power)
         mock_get_html.assert_called_once_with()
         mock_release_workers.assert_called_once_with()
+
+
+class TestDockerizedPipeline(TestPipelineBase):
+    pipeline_class = DockerizedPipeline
+
+    @patch("scrapemeagain.pipeline.Pipeline.inform")
+    def test_inform(self, mock_inform):
+        self.pipeline.inform("message")
+
+        mock_inform.assert_called_once_with("message", end="\n", log=True)

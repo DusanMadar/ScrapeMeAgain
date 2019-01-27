@@ -5,8 +5,10 @@ from scrapemeagain.pipeline import Pipeline
 
 
 class TestPipelineBase(TestCase):
+    pipeline_class = Pipeline
+
     def setUp(self):
-        self.pipeline = Pipeline(Mock(), Mock(), Mock())
+        self.pipeline = self.pipeline_class(Mock(), Mock(), Mock())
 
         # Mock Scraper.
         self.pipeline.scraper.get_item_urls = Mock()
@@ -20,10 +22,11 @@ class TestPipelineBase(TestCase):
 
         #
         # Mock multiprocessing (instead of calling 'prepare_multiprocessing').
-        # Mock pipeline's Pool and Pool.map.
-        mock_pool = Mock()
-        mock_pool.return_value.map = Mock()
-        self.pipeline.pool = mock_pool
+        # Mock pipeline's loop, loop.run_until_complete and aiohttp_client.
+        mock_loop = Mock()
+        mock_loop.return_value.run_until_complete = Mock()
+        self.pipeline.loop = mock_loop
+        self.pipeline.aiohttp_client = Mock()
 
         # Ensure each pipeline's Queue is an unique Mock object.
         self.pipeline.url_queue = Mock()

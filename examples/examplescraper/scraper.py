@@ -43,7 +43,7 @@ class ExampleScraper(BaseScraper):
 
     def get_item_urls(self, response):
         links = []
-        soup = BeautifulSoup(response.content, "html.parser")
+        soup = BeautifulSoup(response.data, "html.parser")
 
         for h3 in soup.findAll("h3"):
             url_data = {"url": h3.find("a").get("href")}
@@ -58,7 +58,7 @@ class ExampleScraper(BaseScraper):
         # (and thus marked as processed).
         properties = {"url": response.url}
 
-        soup = BeautifulSoup(response.content, "html.parser")
+        soup = BeautifulSoup(response.data, "html.parser")
 
         headers = soup.findAll("h1")
         if headers:

@@ -1,65 +1,64 @@
 """Common HTTP functions."""
 
 
+from collections import namedtuple
 import logging
 from random import sample
 
-import requests
+import aiohttp
 
 from scrapemeagain.config import Config
 
 
 RESPONSE_LOG_MESSAGE = "{status} - {url}"
 
+Response = namedtuple("Response", "url status data")
 
-def get(url, **kwargs):
-    """GET data from provided URL.
+
+def setup_aiohttp_client():
+    connector = aiohttp.TCPConnector(force_close=True, ssl=False)
+    timeout = aiohttp.ClientTimeout(total=Config.REQUEST_TIMEOUT)
+    return aiohttp.ClientSession(connector=connector, timeout=timeout)
+
+
+async def aget(url, client, **kwargs):
+    """Asynchronously GET data from provided URL.
 
     :argument url:
     :type url: str
 
-    :returns `requests.Response` instance
+    :returns `Response` instance
     """
-    kwargs["proxies"] = {
-        "http": Config.LOCAL_HTTP_PROXY,
-        "https": Config.LOCAL_HTTP_PROXY,
-    }
-
-    kwargs["verify"] = False
-    kwargs["timeout"] = Config.REQUEST_TIMEOUT
-
-    user_agent = sample(Config.USER_AGENTS, 1)[0]
-    kwargs["headers"] = {"User-Agent": user_agent}
+    kwargs["proxy"] = Config.LOCAL_HTTP_PROXY
+    kwargs["headers"] = {"User-Agent": sample(Config.USER_AGENTS, 1)[0]}
 
     try:
-        response = requests.get(url, **kwargs)
+        async with client.get(url, **kwargs) as aresp:
+            data = await aresp.text()
 
         logging.debug(
-            RESPONSE_LOG_MESSAGE.format(status=response.status_code, url=url)
+            RESPONSE_LOG_MESSAGE.format(status=aresp.status, url=url)
         )
 
-        # NOTE: set the actually requested URL (as that one is stored in the
-        # item_urls DB table).
-        if url != response.url:
-            logging.warning("Requested {0} got {1}".format(url, response.url))
-            response.url = url
+        if url != str(aresp.url):
+            logging.warning("Requested {0} got {1}".format(url, aresp.url))
+
+        status = aresp.status
     except Exception as exc:
         # Don't fail on any exception and setup a fake response instead.
-        response = requests.Response()
-        response.url = url
-
-        if isinstance(exc, requests.exceptions.Timeout):
-            response.status_code = 408
+        if isinstance(exc, aiohttp.ServerTimeoutError):
+            status = 408
         else:
-            response.status_code = 503
+            status = 503
 
-        error_message = RESPONSE_LOG_MESSAGE.format(
-            status=response.status_code, url=url
-        )
+        error_message = RESPONSE_LOG_MESSAGE.format(status=status, url=url)
 
         try:
             error_message += " - {}".format(str(exc))
         finally:
             logging.error(error_message)
 
+        data = None
+
+    response = Response(url, status, data)
     return response

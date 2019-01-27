@@ -6,7 +6,7 @@
 
 # ScrapeMeAgain
 
-ScrapeMeAgain is a Python 3 powered web scraper. It uses multiprocessing to get the work done quicker and stores collected data in an [SQLite](http://www.sqlite.org/) database.
+ScrapeMeAgain is a Python 3 powered web scraper. It uses multiprocessing and asyncio to get the work done quicker and stores collected data in an [SQLite](http://www.sqlite.org/) database.
 
 
 ## Installation
@@ -80,6 +80,18 @@ python3 examples/examplescraper/main.py
 
 **NOTE** You may need to update your `PYTHONPATH`.
 
+
+## Development
+
+To simplify running integration tests with latest changes:
+
+ * replace `"image": "dusanmadar/scrapemeagain:x.y.z",` with `"image": "scp:latest"`
+ in `scripts/scrapemeagain-compose.py`
+
+ * and make sure to rebuild the image locally before running tests, e.g.
+```
+docker build . -t scp:latest; python -m unittest discover -p test_integration.py
+```
 
 
 ## Legacy

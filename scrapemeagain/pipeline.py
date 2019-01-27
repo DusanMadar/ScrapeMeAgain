@@ -1,17 +1,36 @@
 """Multiprocess I/O intensive tasks to maximize performance."""
 
 
+import asyncio
+from contextlib import contextmanager
 import logging
-from multiprocessing import Event, Pool, Process, Queue, Value
+from multiprocessing import Event, Process, Queue, Value
 import time
 
 from scrapemeagain.config import Config
+from scrapemeagain.utils import http
 from scrapemeagain.utils.alnum import get_current_datetime
-from scrapemeagain.utils.http import get
 
 
 EXIT = "__exit__"
 DUMP_URLS_BUCKET = "__dump_urls_bucket__"
+
+
+@contextmanager
+def manage_aiohttp_client(instance):
+    """
+    Context manager to ensure `Pipeline.aiohttp_client`is ready and properly
+    closed later on.
+
+    :argument instance: a Pipeline instance
+    :type instance: object
+    """
+    if instance.aiohttp_client.closed:
+        instance.aiohttp_client = http.setup_aiohttp_client()
+
+    yield
+
+    instance.loop.run_until_complete(instance.aiohttp_client.close())
 
 
 class Pipeline:
@@ -47,7 +66,8 @@ class Pipeline:
         self.response_queue = Queue()
         self.data_queue = Queue()
 
-        self.pool = Pool(self.scrape_processes)
+        self.loop = asyncio.get_event_loop()
+        self.aiohttp_client = http.setup_aiohttp_client()
 
         self.producing_urls_in_progress = Event()
         self.requesting_in_progress = Event()
@@ -150,9 +170,9 @@ class Pipeline:
         it's URL  back to 'url_queue'.
 
         :argument response:
-        :type response: request.response
+        :type response: utils.http.Response
         """
-        if not response.ok and response.status_code >= 408:
+        if response.status >= 408:
             self.url_queue.put(response.url)
         else:
             self.response_queue.put(response)
@@ -165,7 +185,12 @@ class Pipeline:
         """
         try:
             self.requesting_in_progress.set()
-            for response in self.pool.map(get, urls):
+            responses = self.loop.run_until_complete(
+                asyncio.gather(
+                    *[http.aget(url, self.aiohttp_client) for url in urls]
+                )
+            )
+            for response in responses:
                 self._classify_response(response)
         except Exception as exc:
             logging.error("Failed scraping URLs")
@@ -177,33 +202,34 @@ class Pipeline:
         """Get HTML for URLs from 'url_queue'."""
         run = True
 
-        while run:
-            urls_bucket = []
-            self.urls_bucket_empty.value = 1
-            for _ in range(0, self.scrape_processes):
-                url = self.url_queue.get()
+        with manage_aiohttp_client(self):
+            while run:
+                urls_bucket = []
+                self.urls_bucket_empty.value = 1
+                for _ in range(0, self.scrape_processes):
+                    url = self.url_queue.get()
 
-                if url == EXIT:
-                    run = False
-                    break
-                elif url == DUMP_URLS_BUCKET:
-                    break
+                    if url == EXIT:
+                        run = False
+                        break
+                    elif url == DUMP_URLS_BUCKET:
+                        break
 
-                urls_bucket.append(url)
-                if self.urls_bucket_empty.value:
-                    self.urls_bucket_empty.value = 0
+                    urls_bucket.append(url)
+                    if self.urls_bucket_empty.value:
+                        self.urls_bucket_empty.value = 0
 
-            if urls_bucket:
-                self._actually_get_html(urls_bucket)
+                if urls_bucket:
+                    self._actually_get_html(urls_bucket)
 
-            if run:
-                self.change_ip()
+                if run:
+                    self.change_ip()
 
     def _scrape_data(self, response):
         """Scrape HTML provided by the given response.
 
         :argument response:
-        :type response: request.response
+        :type response: utils.http.Response
 
         :returns dict
         """
@@ -218,7 +244,7 @@ class Pipeline:
         """Collect data from the given response.
 
         :argument response:
-        :type response: request.response
+        :type response: utils.http.Response
         """
         try:
             self.scraping_in_progress.set()

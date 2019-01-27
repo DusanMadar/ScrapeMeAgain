@@ -4,9 +4,7 @@
 import abc
 
 
-class BaseScraper(object):
-    __metaclass__ = abc.ABCMeta
-
+class BaseScraper(metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def base_url(self):
         """Target web site base address."""
@@ -48,7 +46,7 @@ class BaseScraper(object):
         """Get item URLs from a given list page.
 
         :argument response: list page
-        :type response: `requests.Response`
+        :type response: `utils.http.Response`
 
         :returns
         """
@@ -59,7 +57,7 @@ class BaseScraper(object):
         """Get item properties.
 
         :argument response:
-        :type response: `requests.Response`
+        :type response: `utils.http.Response`
 
         :returns dict
         """
