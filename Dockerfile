@@ -22,7 +22,7 @@ COPY requirements.txt $APP_DIR/requirements.txt
 RUN \
     wget -O /tmp/get-pip.py "https://bootstrap.pypa.io/get-pip.py" && \
     python3 /tmp/get-pip.py && \
-    pip3 install --no-cache-dir -U pip && \
+    pip3 install --no-cache-dir -U pip==18.1 && \
     pip3 install --no-cache-dir -r $APP_DIR/requirements.txt
 
 COPY scrapemeagain $APP_SRC_DIR
