@@ -1,4 +1,5 @@
-from unittest.mock import patch, PropertyMock
+import asyncio
+from unittest.mock import Mock, patch, PropertyMock
 
 
 from tests.pipeline_base import TestPipelineBase
@@ -179,19 +180,43 @@ class TestPipeline(TestPipelineBase):
                 mock_response_not_ok
             )
 
+    @patch("scrapemeagain.pipeline.asyncio.as_completed")
+    @patch("scrapemeagain.pipeline.http.aget")
+    def test_response_generator(self, mock_aget, mock_as_completed):
+        """Test '_response_generator' generates responses for given URLs"""
+        mock_urls = ["url1", "url2", "url3"]
+        mock_url_statuses = [200, 500, 200]
+        mock_urls_futures = [asyncio.Future()] * len(mock_urls)
+
+        mock_aget.side_effect = mock_urls_futures
+        mock_as_completed.side_effect = create_responses(
+            mock_urls, mock_url_statuses
+        )
+
+        # Convert generator to list to exhaust it.
+        list(self.pipeline._response_generator(mock_urls))
+
+        self.assertEqual(mock_aget.call_count, len(mock_urls))
+        mock_as_completed.assert_called_once_with(mock_urls_futures)
+        self.assertEqual(
+            self.pipeline.loop.run_until_complete.call_count, len(mock_urls)
+        )
+
     @patch("scrapemeagain.pipeline.logging")
     @patch("scrapemeagain.pipeline.Pipeline._classify_response")
-    def test_actually_get_html(self, mock_classify_response, mock_logging):
+    @patch("scrapemeagain.pipeline.Pipeline._response_generator")
+    def test_actually_get_html(
+        self, mock_response_generator, mock_classify_response, mock_logging
+    ):
         """Test '_actually_get_html' fires requests for given URLs."""
         mock_urls = ["url1", "url2", "url3"]
         mock_url_statuses = [200, 500, 200]
-        self.pipeline.loop.run_until_complete.return_value = create_responses(
-            mock_urls, mock_url_statuses
+        mock_response_generator.return_value = iter(
+            create_responses(mock_urls, mock_url_statuses)
         )
 
         self.pipeline._actually_get_html(mock_urls)
 
-        self.pipeline.loop.run_until_complete.assert_called_once()
         self.assertEqual(mock_classify_response.call_count, len(mock_urls))
         self.pipeline.requesting_in_progress.set.assert_called_once_with()
         self.pipeline.requesting_in_progress.clear.assert_called_once_with()

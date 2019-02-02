@@ -1,4 +1,8 @@
-"""Multiprocess I/O intensive tasks to maximize performance."""
+"""
+Use event loop for I/O intensive tasks (HTTP requests) and multiprocessing for
+handling data (parsing request body and storing gathered data) to maximize
+performance.
+"""
 
 
 import asyncio
@@ -177,20 +181,28 @@ class Pipeline:
         else:
             self.response_queue.put(response)
 
+    def _response_generator(self, urls):
+        """Generate responses as they are finished without waiting for all.
+
+        Credits: https://stackoverflow.com/q/41901795/4183498.
+
+        :argument urls: URLs to get data from
+        :type urls: list
+        """
+        futures = [http.aget(url, self.aiohttp_client) for url in urls]
+        for future in asyncio.as_completed(futures):
+            yield self.loop.run_until_complete(future)
+
     def _actually_get_html(self, urls):
-        """Request provided URLs running multiple processes.
+        """Asynchronously fetch provided URLs.
 
         :argument urls: URLs to get data from
         :type urls: list
         """
         try:
             self.requesting_in_progress.set()
-            responses = self.loop.run_until_complete(
-                asyncio.gather(
-                    *[http.aget(url, self.aiohttp_client) for url in urls]
-                )
-            )
-            for response in responses:
+
+            for response in self._response_generator(urls):
                 self._classify_response(response)
         except Exception as exc:
             logging.error("Failed scraping URLs")
