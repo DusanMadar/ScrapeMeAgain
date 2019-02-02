@@ -1,6 +1,7 @@
 """Common HTTP functions."""
 
 
+import asyncio
 from collections import namedtuple
 import logging
 from random import sample
@@ -46,7 +47,7 @@ async def aget(url, client, **kwargs):
         status = aresp.status
     except Exception as exc:
         # Don't fail on any exception and setup a fake response instead.
-        if isinstance(exc, aiohttp.ServerTimeoutError):
+        if isinstance(exc, asyncio.TimeoutError):
             status = 408
         else:
             status = 503
