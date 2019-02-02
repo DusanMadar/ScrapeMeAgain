@@ -1,9 +1,14 @@
+import random
 import sys
+import time
 
 from flask import Flask, render_template, request
 
+from examplescraper.config import Config
+
 
 app = Flask(__name__)
+timeouted_posts = []
 
 
 @app.route("/posts/")
@@ -22,8 +27,16 @@ def post_list():
     )
 
 
-@app.route("/posts/<id>")
+def simulate_response_delay(id):
+    if (id % 10 == 0) and len(timeouted_posts) <= 5:
+        if id not in timeouted_posts:
+            timeouted_posts.append(id)
+            time.sleep(random.randint(0, Config.REQUEST_TIMEOUT))
+
+
+@app.route("/posts/<int:id>")
 def post_detail(id):
+    simulate_response_delay(id)
     return render_template("item.html", id=id, back=request.referrer)
 
 
