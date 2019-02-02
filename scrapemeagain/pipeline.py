@@ -21,7 +21,7 @@ DUMP_URLS_BUCKET = "__dump_urls_bucket__"
 
 
 @contextmanager
-def manage_aiohttp_client(instance):
+def aiohttp_client_context(instance):
     """
     Context manager to ensure `Pipeline.aiohttp_client`is ready and properly
     closed later on.
@@ -214,7 +214,7 @@ class Pipeline:
         """Get HTML for URLs from 'url_queue'."""
         run = True
 
-        with manage_aiohttp_client(self):
+        with aiohttp_client_context(self):
             while run:
                 urls_bucket = []
                 self.urls_bucket_empty.value = 1

@@ -257,7 +257,7 @@ class TestPipeline(TestPipelineBase):
         mock_change_ip.assert_called_once_with()
         mock_actually_get_html.assert_called_once_with(mock_urls)
 
-        # Check `manage_aiohttp_client` context manager closes the client.
+        # Check `aiohttp_client_context` context manager closes the client.
         mock_setup_aiohttp_client.return_value.close.assert_called_once_with()
 
     def test_scrape_data_item_urls(self):
