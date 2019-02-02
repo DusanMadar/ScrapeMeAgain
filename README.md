@@ -78,14 +78,14 @@ python3 examples/examplescraper/examplesite/app.py
 python3 examples/examplescraper/main.py
 ```
 
-**NOTE** You may need to update your `PYTHONPATH`.
+**NOTE** You may need to update your `PYTHONPATH`, e.g. `export PYTHONPATH=$PYTHONPATH:$(pwd)/examples`.
 
 
 ## Development
 
 To simplify running integration tests with latest changes:
 
- * replace `"image": "dusanmadar/scrapemeagain:x.y.z",` with `"image": "scp:latest"`
+ * replace `"image": "dusanmadar/scrapemeagain:x.y.z",` with `"image": "scp:latest",`
  in `scripts/scrapemeagain-compose.py`
 
  * and make sure to rebuild the image locally before running tests, e.g.
