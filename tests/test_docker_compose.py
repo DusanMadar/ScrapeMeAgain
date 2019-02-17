@@ -11,7 +11,7 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE = """
 version: '3'
 services:
   examplescraper-scp1:
-    image: dusanmadar/scrapemeagain:1.1.0
+    image: dusanmadar/scrapemeagain:1.0.3
     entrypoint: /scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scp1.sh
     volumes:
       - /tmp/examplescraper:/scp/examplescraper
@@ -30,7 +30,7 @@ services:
       - DATASTORE_PORT=7000
       - HEALTHCHECK_PORT=8000
   examplescraper-scp2:
-    image: dusanmadar/scrapemeagain:1.1.0
+    image: dusanmadar/scrapemeagain:1.0.3
     entrypoint: /scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scpx.sh
     volumes:
       - /tmp/examplescraper:/scp/examplescraper
