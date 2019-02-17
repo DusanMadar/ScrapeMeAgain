@@ -75,8 +75,8 @@ def construct_compose_file(path, config=None):
 
     # A dynamic way to get the path of `scrapemeagain.dockerized` package.
     # Required because this file must be runnable both during development and
-    # anfter installing the package.
-    # Credists: https://stackoverflow.com/q/2419416/4183498.
+    # after installing the package.
+    # Credits: https://stackoverflow.com/q/2419416/4183498.
     dockerized_utils_module_path = inspect.getsourcefile(apply_scraper_config)
     template_dir = os.path.dirname(dockerized_utils_module_path)
     with open(os.path.join(template_dir, "docker-compose.yml")) as f:
