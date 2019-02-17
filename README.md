@@ -84,8 +84,8 @@ python3 examples/examplescraper/main.py
 
 To simplify running integration tests with latest changes:
 
- * replace `"image": "dusanmadar/scrapemeagain:x.y.z",` with `"image": "scp:latest",`
- in `scripts/scrapemeagain-compose.py`
+ * replace `image: dusanmadar/scrapemeagain:x.y.z` with `image: scp:latest`
+ in the `docker-compose.yml` template
 
  * and make sure to rebuild the image locally before running tests, e.g.
 ```

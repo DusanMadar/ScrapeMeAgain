@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 from time import sleep
 import unittest
-import yaml
 
 from sqlalchemy import create_engine
 from scrapemeagain.dockerized.utils import get_inf_ip_address
@@ -56,10 +55,8 @@ class IntegrationTestCase(unittest.TestCase):
         return p
 
     def _run_examplescraper_compose(self):
-        scrapemeagain_compose = yaml.dump(
-            docker_compose.construct_compose_dict(
-                EXAMPLESCRAPER_DIR, "tests.integration.fake_config"
-            )
+        scrapemeagain_compose = docker_compose.construct_compose_file(
+            EXAMPLESCRAPER_DIR, "tests.integration.fake_config"
         )
         # ' - ' meaning: https://unix.stackexchange.com/a/16364/266262.
         command = "docker-compose -f - up --force-recreate"

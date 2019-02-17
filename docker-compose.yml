@@ -1,0 +1,17 @@
+version: '3'
+services:
+  {% for service in services -%}
+  {{ service["name"] }}:
+    image: dusanmadar/scrapemeagain:1.1.0
+    entrypoint: {{ service["entrypoint"] }}
+    volumes:
+      {%- for volume in service["volumes"] %}
+      - {{ volume }}
+      {%- endfor %}
+    environment:
+      {%- for key, value in service["environment"].items() %}
+      {%- if value is not none %}
+      - {{ key }}={{ value -}}
+      {% endif -%}
+      {% endfor %}
+  {% endfor -%}

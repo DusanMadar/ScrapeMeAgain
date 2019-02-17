@@ -4,4 +4,3 @@ sqlalchemy
 stem
 flask
 toripchanger
-pyyaml
