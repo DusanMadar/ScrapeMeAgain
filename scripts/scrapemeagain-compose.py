@@ -9,12 +9,13 @@ Usage:
 
     Example:
     $ cd ../
-    $ python3 scrapemeagain-compose.py -s $(pwd)/examples/examplescraper | docker-compose -f - up
-    $ python3 scrapemeagain-compose.py -s $(pwd)/examples/examplescraper -c tests.integration.fake_config | docker-compose -f - up
+    $ python3 scripts/scrapemeagain-compose.py -s $(pwd)/examples/examplescraper | docker-compose -f - up
+    $ python3 scripts/scrapemeagain-compose.py -s $(pwd)/examples/examplescraper -c tests.integration.fake_config | docker-compose -f - up
 """  # noqa
 
 
 import argparse
+import inspect
 import os
 import sys
 
@@ -72,7 +73,12 @@ def construct_compose_file(path, config=None):
         for id in range(1, Config.SCRAPERS_COUNT + 1)
     ]
 
-    template_dir = os.path.dirname(os.path.dirname(__file__))
+    # A dynamic way to get the path of `scrapemeagain.dockerized` package.
+    # Required because this file must be runnable both during development and
+    # anfter installing the package.
+    # Credists: https://stackoverflow.com/q/2419416/4183498.
+    dockerized_utils_module_path = inspect.getsourcefile(apply_scraper_config)
+    template_dir = os.path.dirname(dockerized_utils_module_path)
     with open(os.path.join(template_dir, "docker-compose.yml")) as f:
         template = Template(f.read())
 
