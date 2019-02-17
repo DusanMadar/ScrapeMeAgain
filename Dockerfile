@@ -13,8 +13,6 @@ RUN \
         tor \
         privoxy \
         python3 \
-        python3-dev \
-        git \
         libressl
 
 COPY requirements.txt $APP_DIR/requirements.txt
