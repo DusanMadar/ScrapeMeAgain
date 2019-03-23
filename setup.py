@@ -25,6 +25,7 @@ setup(
     keywords="web scraper",
     packages=find_packages(),
     scripts=["scripts/scrapemeagain-compose.py"],
+    include_package_data=True,
     test_suite="tests",
     license="MIT",
     platforms="linux",
