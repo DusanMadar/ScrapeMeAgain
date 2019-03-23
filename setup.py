@@ -14,7 +14,7 @@ requirements = read("requirements.txt", True)
 
 
 setup(
-    version="1.0.3",
+    version="1.0.4",
     name="scrapemeagain",
     url="https://github.com/DusanMadar/ScrapeMeAgain",
     author="Dusan Madar",
