@@ -30,7 +30,7 @@ setup_logging(logger_name="example-scraper")
 scraper = ExampleScraper()
 databaser = Databaser(scraper.db_file, scraper.db_table)
 pipeline = Pipeline(scraper, databaser, tor_ip_changer)
-pipeline.prepare_multiprocessing()
+pipeline.prepare_pipeline()
 
 try:
     services.start_backbone_services()

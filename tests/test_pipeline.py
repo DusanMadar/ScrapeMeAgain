@@ -25,16 +25,16 @@ class TestPipeline(TestPipelineBase):
     @patch("scrapemeagain.pipeline.Event")
     @patch("scrapemeagain.pipeline.ThreadPoolExecutor")
     @patch("scrapemeagain.pipeline.Queue")
-    def test_prepare_multiprocessing(
+    def test_prepare_pipeline(
         self, mock_queue, mock_pool, mock_event, mock_value
     ):
-        """Test 'prepare_multiprocessing' initializes all necessary
-        multiprocessing objects.
+        """Test 'prepare_pipeline' initializes all necessary
+        multithreading and multiprocessing objects.
         """
-        self.pipeline.prepare_multiprocessing()
+        self.pipeline.prepare_pipeline()
 
         self.assertTrue(mock_queue.call_count, 3)
-        mock_pool.assert_called_once_with(self.pipeline.scrape_processes)
+        mock_pool.assert_called_once_with(self.pipeline.workers_count)
         self.assertTrue(mock_event.call_count, 2)
         self.assertTrue(mock_value.call_count, 2)
 
@@ -219,7 +219,7 @@ class TestPipeline(TestPipelineBase):
         self.pipeline.url_queue.get.side_effect = (
             mock_urls + [DUMP_URLS_BUCKET] + [EXIT]
         )
-        self.pipeline.scrape_processes = 4
+        self.pipeline.workers_count = 4
 
         self.pipeline.get_html()
 

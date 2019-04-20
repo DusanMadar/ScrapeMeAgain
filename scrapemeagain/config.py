@@ -13,8 +13,8 @@ class Config:
 
     #
     # Scraping settings.
-    # Number of processes used to asynchronously scrape data from URLs.
-    SCRAPE_PROCESSES = 50
+    # Number of threads used to asynchronously scrape data from URLs.
+    WORKERS_COUNT = 50
 
     # How long to wait for a response (in seconds).
     REQUEST_TIMEOUT = 10

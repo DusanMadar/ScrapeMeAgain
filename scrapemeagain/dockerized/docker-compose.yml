@@ -2,7 +2,7 @@ version: '3'
 services:
   {% for service in services -%}
   {{ service["name"] }}:
-    image: dusanmadar/scrapemeagain:1.0.3
+    image: dusanmadar/scrapemeagain:1.0.5
     entrypoint: {{ service["entrypoint"] }}
     volumes:
       {%- for volume in service["volumes"] %}

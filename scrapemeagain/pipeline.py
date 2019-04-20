@@ -1,4 +1,6 @@
-"""Multiprocess I/O intensive tasks to maximize performance."""
+"""
+Multithread I/O and multiprocess CPU intensive tasks to maximize performance.
+"""
 
 
 from concurrent.futures import ThreadPoolExecutor
@@ -38,17 +40,17 @@ class Pipeline:
         self.databaser = databaser
         self.tor_ip_changer = tor_ip_changer
 
-        self.scrape_processes = Config.SCRAPE_PROCESSES
+        self.workers_count = Config.WORKERS_COUNT
 
         self.workers = []
 
-    def prepare_multiprocessing(self):
-        """Prepare all necessary multiprocessing objects."""
+    def prepare_pipeline(self):
+        """Prepare all necessary multithreading and multiprocessing objects."""
         self.url_queue = Queue()
         self.response_queue = Queue()
         self.data_queue = Queue()
 
-        self.pool = ThreadPoolExecutor(self.scrape_processes)
+        self.pool = ThreadPoolExecutor(self.workers_count)
 
         self.producing_urls_in_progress = Event()
         self.requesting_in_progress = Event()
@@ -181,7 +183,7 @@ class Pipeline:
         while run:
             urls_bucket = []
             self.urls_bucket_empty.value = 1
-            for _ in range(0, self.scrape_processes):
+            for _ in range(0, self.workers_count):
                 url = self.url_queue.get()
 
                 if url == EXIT:

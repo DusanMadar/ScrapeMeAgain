@@ -31,7 +31,7 @@ tor_ip_changer = toripchanger_class(
 scraper = DockerizedExampleScraper()
 databaser = DockerizedDatabaser(scraper.db_file)
 pipeline = DockerizedPipeline(scraper, databaser, tor_ip_changer)
-pipeline.prepare_multiprocessing()
+pipeline.prepare_pipeline()
 
 
 if __name__ == "__main__":

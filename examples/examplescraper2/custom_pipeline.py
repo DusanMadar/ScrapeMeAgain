@@ -5,15 +5,15 @@ from scrapemeagain.pipeline import Pipeline
 
 
 class ExhaustApiLimitPipeLine(Pipeline):
-    def prepare_multiprocessing(self):
-        super().prepare_multiprocessing()
+    def prepare_pipeline(self):
+        super().prepare_pipeline()
 
         # New event to determine when an IP should be changed.
         self.change_ip_now = Event()
 
         # Set this to the upper limit of requests per second your target API
         # is able to handle from a single IP.
-        self.scrape_processes = 5
+        self.workers_count = 5
 
     def change_ip(self):
         """

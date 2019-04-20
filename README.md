@@ -3,17 +3,16 @@
 [![PyPI version](https://badge.fury.io/py/scrapemeagain.svg)](https://badge.fury.io/py/scrapemeagain)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
-
 # ScrapeMeAgain
 
-ScrapeMeAgain is a Python 3 powered web scraper. It uses multiprocessing to get the work done quicker and stores collected data in an [SQLite](http://www.sqlite.org/) database.
-
+ScrapeMeAgain is a Python 3 powered web scraper. It uses multithreading ([`ThreadPoolExecutor`](https://docs.python.org/dev/library/concurrent.futures.html#threadpoolexecutor)) and multiprocessing to get the work done quicker and stores collected data in an [SQLite](http://www.sqlite.org/) database.
 
 ## Installation
 
 ```
 pip install scrapemeagain
 ```
+
 ### System requirements
 
 [Tor](https://www.torproject.org/) in combination with [Privoxy](http://www.privoxy.org/) are used for anonymity (i.e. regular IP address changes).
@@ -22,9 +21,9 @@ Using `Docker` and `Docker Compose` is the preferred (and easier) way to
 use ScrapeMeAgain.
 
 You have to manually install and setup `Tor` and `Privoxy` on your system if not using `Docker`. For further information about installation and configuration refer to:
- * [A step-by-step guide how to use Python with Tor and Privoxy](https://gist.github.com/DusanMadar/8d11026b7ce0bce6a67f7dd87b999f6b)
- * [Crawling anonymously with Tor in Python](http://sacharya.com/crawling-anonymously-with-tor-in-python/) ([alternative link (Gist)](https://gist.github.com/KhepryQuixote/46cf4f3b999d7f658853))
 
+- [A step-by-step guide how to use Python with Tor and Privoxy](https://gist.github.com/DusanMadar/8d11026b7ce0bce6a67f7dd87b999f6b)
+- [Crawling anonymously with Tor in Python](http://sacharya.com/crawling-anonymously-with-tor-in-python/) ([alternative link (Gist)](https://gist.github.com/KhepryQuixote/46cf4f3b999d7f658853))
 
 ## Usage
 
@@ -46,7 +45,7 @@ Your scraper must define `config.py` and `main_dockerized.py`. These two names a
 ip addr show docker0
 ```
 
-**NOTE** Your Docker interface name may be different from *docker0*.
+**NOTE** Your Docker interface name may be different from _docker0_.
 
 2. Run `examplesite` on Docker host IP
 
@@ -54,7 +53,7 @@ ip addr show docker0
 python3 examples/examplescraper/examplesite/app.py 172.17.0.1
 ```
 
-**NOTE** Your Docker host IP may be different from *172.17.0.1*.
+**NOTE** Your Docker host IP may be different from _172.17.0.1_.
 
 3. Start `docker-compose`
 
@@ -62,7 +61,7 @@ python3 examples/examplescraper/examplesite/app.py 172.17.0.1
 scrapemeagain-compose.py -s $(pwd)/examples/examplescraper -c tests.integration.fake_config | docker-compose -f - up
 ```
 
-**NOTE** A special config file path is provided: `-c tests.integration.fake_config`. This is *required only for test/demo purposes*. You don't have to provide specific config for a real/production scraper.
+**NOTE** A special config file path is provided: `-c tests.integration.fake_config`. This is _required only for test/demo purposes_. You don't have to provide specific config for a real/production scraper.
 
 ### Local
 
@@ -84,14 +83,15 @@ python3 examples/examplescraper/main.py
 
 To simplify running integration tests with latest changes:
 
- * replace `image: dusanmadar/scrapemeagain:x.y.z` with `image: scp:latest`
- in the `scrapemeagain/dockerized/docker-compose.yml` template
+- replace `image: dusanmadar/scrapemeagain:x.y.z` with `image: scp:latest`
+  in the `scrapemeagain/dockerized/docker-compose.yml` template
 
- * and make sure to rebuild the image locally before running tests, e.g.
+- and make sure to rebuild the image locally before running tests, e.g.
+
 ```
 docker build . -t scp:latest; python -m unittest discover -p test_integration.py
 ```
 
-
 ## Legacy
+
 The Python 2.7 version of ScrapeMeAgain, which also provides geocoding capabilities, is available under the `legacy` branch and is no longer maintained.

@@ -19,7 +19,7 @@ class TestPipelineBase(TestCase):
         self.pipeline.databaser.commit = Mock()
 
         #
-        # Mock multiprocessing (instead of calling 'prepare_multiprocessing').
+        # Mock `prepare_pipeline()`.
         # Mock pipeline's Pool and Pool.map.
         mock_pool = Mock()
         mock_pool.return_value.map = Mock()
