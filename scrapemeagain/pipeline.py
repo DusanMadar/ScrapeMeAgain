@@ -1,8 +1,9 @@
 """Multiprocess I/O intensive tasks to maximize performance."""
 
 
+from concurrent.futures import ThreadPoolExecutor
 import logging
-from multiprocessing import Event, Pool, Process, Queue, Value
+from multiprocessing import Event, Process, Queue, Value
 import time
 
 from scrapemeagain.config import Config
@@ -47,7 +48,7 @@ class Pipeline:
         self.response_queue = Queue()
         self.data_queue = Queue()
 
-        self.pool = Pool(self.scrape_processes)
+        self.pool = ThreadPoolExecutor(self.scrape_processes)
 
         self.producing_urls_in_progress = Event()
         self.requesting_in_progress = Event()
@@ -91,7 +92,7 @@ class Pipeline:
         try:
             new_ip = self.tor_ip_changer.get_new_ip()
             logging.info("New IP: {new_ip}".format(new_ip=new_ip))
-        except:
+        except:  # noqa
             logging.error("Failed setting new IP")
             return self.change_ip()
 

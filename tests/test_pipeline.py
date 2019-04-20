@@ -23,7 +23,7 @@ def create_responses(mock_urls, mock_statuses):
 class TestPipeline(TestPipelineBase):
     @patch("scrapemeagain.pipeline.Value")
     @patch("scrapemeagain.pipeline.Event")
-    @patch("scrapemeagain.pipeline.Pool")
+    @patch("scrapemeagain.pipeline.ThreadPoolExecutor")
     @patch("scrapemeagain.pipeline.Queue")
     def test_prepare_multiprocessing(
         self, mock_queue, mock_pool, mock_event, mock_value
