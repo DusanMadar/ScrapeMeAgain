@@ -5,7 +5,7 @@ import os
 from requests import get
 from bs4 import BeautifulSoup
 
-from .alnum import DATE_FORMAT, get_current_date
+from scrapemeagain.utils.alnum import DATE_FORMAT, get_current_date
 
 
 USER_AGENTS_URL = (
@@ -54,6 +54,7 @@ def _user_agents_are_old(user_agents):
 
 
 def get_user_agents():
+    return []
     if not os.path.exists(USER_AGENTS_FILE):
         return _scrape_and_save_user_agents()
 

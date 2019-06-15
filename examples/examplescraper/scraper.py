@@ -18,6 +18,11 @@ class ExampleScraper(BaseScraper):
     db_file = "example"
     db_table = ExampleDataTable
 
+    @property
+    def list_urls_range(self):
+        # We only want first 10 lists.
+        return 10, 0
+
     def __init__(self):
         # NOTE you don't need to do this for publicly accessible websites. In
         # fact, the whole __init__ method is here "only" to enable testing with
@@ -29,17 +34,16 @@ class ExampleScraper(BaseScraper):
                 "localhost", os.environ.get("DOCKER_HOST_IP")
             )
 
-    def _format_list_url(self, index):
-        return self.base_url + self.list_url_template + str(index)
+    def _format_list_url(self, list_url_number):
+        return "{base}{template}{list_url_number}".format(
+            base=self.base_url,
+            template=self.list_url_template,
+            list_url_number=list_url_number,
+        )
 
     def generate_list_urls(self):
-        list_count = self.get_lists_count()
-
-        return (self._format_list_url(i) for i in range(0, list_count, 10))
-
-    def get_lists_count(self):
-        # We only want first 10 lists.
-        return 10
+        for list_url_number in range(*self.list_urls_range, -1):
+            yield self._format_list_url(list_url_number)
 
     def get_item_urls(self, response):
         links = []
@@ -68,9 +72,12 @@ class ExampleScraper(BaseScraper):
 
 
 class DockerizedExampleScraper(ExampleScraper):
-    def generate_list_urls(self):
-        start, stop = urlbroker_client.get_list_urls_range()
-        return (self._format_list_url(i) for i in range(start, stop, -1))
+    @property
+    def list_urls_range(self):
+        if not hasattr(self, "_list_urls_range"):
+            self._list_urls_range = urlbroker_client.get_list_urls_range()
+
+        return self._list_urls_range
 
 
 class ListUrlsBroker(urlbrokers.ListUrlsBroker):

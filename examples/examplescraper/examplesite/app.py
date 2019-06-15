@@ -1,6 +1,6 @@
 import sys
 
-from flask import Flask, render_template, request
+from flask import Flask, redirect, render_template, request, url_for
 
 
 app = Flask(__name__)
@@ -9,6 +9,9 @@ app = Flask(__name__)
 @app.route("/posts/")
 def post_list():
     page = int(request.args.get("page", 1))
+    if page < 1:
+        return redirect(url_for("post_list"))
+
     page_prev = page - 1
     page_next = page + 1
     page *= 10

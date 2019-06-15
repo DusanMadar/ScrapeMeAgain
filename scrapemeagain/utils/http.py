@@ -28,8 +28,8 @@ def get(url, **kwargs):
     kwargs["verify"] = False
     kwargs["timeout"] = Config.REQUEST_TIMEOUT
 
-    user_agent = sample(Config.USER_AGENTS, 1)[0]
-    kwargs["headers"] = {"User-Agent": user_agent}
+    # user_agent = sample(Config.USER_AGENTS, 1)[0]
+    # kwargs["headers"] = {"User-Agent": user_agent}
 
     try:
         response = requests.get(url, **kwargs)

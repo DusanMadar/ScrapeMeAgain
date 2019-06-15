@@ -44,4 +44,4 @@ class ListUrlsBroker(UrlsRangeManager):
         self.scraper = scraper
 
     def get_urls_count(self):
-        return self.scraper.get_lists_count()
+        return self.scraper.list_urls_count

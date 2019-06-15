@@ -36,10 +36,11 @@ class BaseScraper(object):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_lists_count(self):
-        """Get lists count from the first list page pagination.
+    @abc.abstractproperty
+    def list_urls_range(self):
+        """Upper and lower range/interval bounds for list URLs, e.g. [10, 0)
 
-        :returns int
+        :returns tuple
         """
         raise NotImplementedError()
 
@@ -64,3 +65,7 @@ class BaseScraper(object):
         :returns dict
         """
         raise NotImplementedError()
+
+    @property
+    def list_urls_count(self):
+        return abs(self.list_urls_range[0] - self.list_urls_range[1])

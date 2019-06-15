@@ -37,7 +37,7 @@ class IntegrationTestCase(unittest.TestCase):
         if os.path.exists(USER_AGENTS_FILE):
             os.rename(USER_AGENTS_FILE, USER_AGENTS_FILE_BACKUP)
 
-        if not os.path.exists(USER_AGENTS_FILE_BACKUP):
+        if not os.path.exists(USER_AGENTS_FILE):
             with open(USER_AGENTS_FILE, "w") as outfile:
                 json.dump(FAKE_USER_AGENTS_JSON, outfile)
 
