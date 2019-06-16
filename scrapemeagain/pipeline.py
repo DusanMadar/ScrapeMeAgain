@@ -153,6 +153,7 @@ class Pipeline:
     def get_html(self, urls_generator):
         """Get HTML for URLs from 'url_queue'."""
         run = True
+        self.inform("URLs to process: {}".format(self.urls_to_process.value))
         self.producing_urls_in_progress.set()
 
         while run:
@@ -338,7 +339,7 @@ class Pipeline:
                 self.url_queue.put(DUMP_URLS_BUCKET)
 
             # Inform about the progress.
-            # self._inform_progress()
+            self._inform_progress()
             time.sleep(5)
 
     def employ_worker(self, target):
@@ -373,7 +374,6 @@ class Pipeline:
 
         # NOTE Execution will block until 'get_html' is finished.
         # url_queue --> response_queue.
-        self.inform("URLs to process: {}".format(urls_count))
         urls_generator = generate_url_function()
         self.get_html(urls_generator)
 

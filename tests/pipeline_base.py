@@ -5,8 +5,10 @@ from scrapemeagain.pipeline import Pipeline
 
 
 class TestPipelineBase(TestCase):
+    pipeline_class = Pipeline
+
     def setUp(self):
-        self.pipeline = Pipeline(Mock(), Mock(), Mock())
+        self.pipeline = self.pipeline_class(Mock(), Mock(), Mock())
 
         # Mock Scraper.
         self.pipeline.scraper.get_item_urls = Mock()

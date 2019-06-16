@@ -3,7 +3,7 @@ from unittest.mock import patch, PropertyMock
 from requests import Response
 
 from tests.pipeline_base import TestPipelineBase
-from scrapemeagain.pipeline import EXIT, DUMP_URLS_BUCKET
+from scrapemeagain.pipeline import EXIT, DockerizedPipeline, DUMP_URLS_BUCKET
 from scrapemeagain.utils.http import get
 
 
@@ -103,47 +103,35 @@ class TestPipeline(TestPipelineBase):
             "New IP: {new_ip}".format(new_ip="8.8.8.8")
         )
 
-    @patch("scrapemeagain.pipeline.time.sleep")
-    @patch("scrapemeagain.pipeline.Pipeline.inform")
-    def test_produce_urls_wrapper(self, mock_inform, mock_sleep):
-        """Test '_produce_urls_wrapper' informs about URLs count and manages
-        the 'producing_urls_in_progress' event.
+    def test_generate_list_urls(self):
         """
-        self.pipeline._produce_urls_wrapper(lambda: 5)
+        Test `generate_list_urls` returns a generator which populates
+        `url_queue` with list URLs.
+        """
+        generator = (i for i in range(0, 2))
+        self.pipeline.scraper.generate_list_urls.return_value = generator
+        self.pipeline.workers_count = 2
 
-        self.assertEqual(self.pipeline.urls_to_process.value, 5)
-        mock_inform.assert_called_once_with(
-            "URLs to process: {}".format(self.pipeline.urls_to_process.value)
-        )
-        mock_sleep.assert_called_once_with(1)
-        self.pipeline.producing_urls_in_progress.set.assert_called_once_with()
-        self.pipeline.producing_urls_in_progress.clear.assert_called_once_with()
+        list_urls_generator = self.pipeline.generate_list_urls()
+        next(list_urls_generator)
 
-    @patch("scrapemeagain.pipeline.Pipeline.inform")
-    @patch("scrapemeagain.pipeline.time.sleep")
-    def test_produce_list_urls(self, mock_sleep, mock_inform):
-        """Test 'produce_list_urls' uses 'scraper.generate_list_urls'."""
-        mock_urls = ["url1", "url2", "url3"]
-        self.pipeline.scraper.generate_list_urls.return_value = mock_urls
+        self.pipeline.url_queue.put.assert_any_call(0)
+        self.pipeline.url_queue.put.assert_any_call(1)
 
-        self.pipeline.produce_list_urls()
+    def test_generate_item_urls(self):
+        """
+        Test `generate_item_urls` returns a generator which populates
+        `url_queue` with list URLs.
+        """
+        mock_get_item_urls = self.pipeline.databaser.get_item_urls
+        mock_get_item_urls.return_value.yield_per.return_value = ((0,), (1,))
+        self.pipeline.workers_count = 2
 
-        self.pipeline.scraper.generate_list_urls.assert_called_once_with()
-        for mock_url in mock_urls:
-            self.pipeline.url_queue.put.assert_any_call(mock_url)
+        item_urls_generator = self.pipeline.generate_item_urls()
+        next(item_urls_generator)
 
-    @patch("scrapemeagain.pipeline.Pipeline.inform")
-    @patch("scrapemeagain.pipeline.time.sleep")
-    def test_produce_item_urls(self, mock_sleep, mock_inform):
-        """Test 'produce_item_urls' uses 'databaser.get_item_urls'."""
-        mock_urls = [("url1",), ("url2",), ("url3",)]
-        self.pipeline.databaser.get_item_urls.return_value = mock_urls
-
-        self.pipeline.produce_item_urls()
-
-        self.pipeline.databaser.get_item_urls.assert_called_once_with()
-        for mock_url in mock_urls:
-            self.pipeline.url_queue.put.assert_any_call(mock_url[0])
+        self.pipeline.url_queue.put.assert_any_call(0)
+        self.pipeline.url_queue.put.assert_any_call(1)
 
     def test_classify_response_ok(self):
         """Test '_classify_response' puts an OK response to
@@ -213,7 +201,10 @@ class TestPipeline(TestPipelineBase):
 
     @patch("scrapemeagain.pipeline.Pipeline._actually_get_html")
     @patch("scrapemeagain.pipeline.Pipeline.change_ip")
-    def test_get_html(self, mock_change_ip, mock_actually_get_html):
+    @patch("scrapemeagain.pipeline.Pipeline.inform")
+    def test_get_html(
+        self, mock_inform, mock_change_ip, mock_actually_get_html
+    ):
         """Test 'get_html' populates and passes URL bulks for processing."""
         mock_urls = ["url1", "url2", "url3"]
         self.pipeline.url_queue.get.side_effect = (
@@ -221,13 +212,15 @@ class TestPipeline(TestPipelineBase):
         )
         self.pipeline.workers_count = 4
 
-        self.pipeline.get_html()
+        generator = (i for i in range(0, 1))
+        self.pipeline.get_html(generator)
 
         # 4 = len(mock_urls) + DUMP_URLS_BUCKET + EXIT
         self.assertEqual(self.pipeline.url_queue.get.call_count, 5)
 
         mock_change_ip.assert_called_once_with()
         mock_actually_get_html.assert_called_once_with(mock_urls)
+        mock_inform.assert_called_once_with("URLs to process: 0")
 
     def test_scrape_data_item_urls(self):
         """Test '_scrape_data' gets item URLs from a list page."""
@@ -539,8 +532,10 @@ class TestPipeline(TestPipelineBase):
     @patch("scrapemeagain.pipeline.Pipeline.release_workers")
     @patch("scrapemeagain.pipeline.Pipeline.employ_worker")
     @patch("scrapemeagain.pipeline.Pipeline.get_html")
+    @patch("scrapemeagain.pipeline.Pipeline.generate_list_urls")
     def test_get_item_urls(
         self,
+        mock_generate_list_urls,
         mock_get_html,
         mock_employ_worker,
         mock_release_workers,
@@ -549,23 +544,27 @@ class TestPipeline(TestPipelineBase):
         """Test 'get_item_urls' starts all necessary workers and waits till
         they are finished.
         """
+        generator = (i for i in range(0, 1))
+        mock_generate_list_urls.return_value = generator
+
         self.pipeline.get_item_urls()
 
         mock_inform.assert_called_once_with("Collecting item URLs")
 
-        mock_employ_worker.assert_any_call(self.pipeline.produce_list_urls)
         mock_employ_worker.assert_any_call(self.pipeline.collect_data)
         mock_employ_worker.assert_any_call(self.pipeline.store_data)
         mock_employ_worker.assert_any_call(self.pipeline.switch_power)
-        mock_get_html.assert_called_once_with()
+        mock_get_html.assert_called_once_with(generator)
         mock_release_workers.assert_called_once_with()
 
     @patch("scrapemeagain.pipeline.Pipeline.inform")
     @patch("scrapemeagain.pipeline.Pipeline.release_workers")
     @patch("scrapemeagain.pipeline.Pipeline.employ_worker")
     @patch("scrapemeagain.pipeline.Pipeline.get_html")
+    @patch("scrapemeagain.pipeline.Pipeline.generate_item_urls")
     def test_get_item_properties(
         self,
+        mock_generate_item_urls,
         mock_get_html,
         mock_employ_worker,
         mock_release_workers,
@@ -574,13 +573,25 @@ class TestPipeline(TestPipelineBase):
         """Test 'get_item_properties' starts all necessary workers and waits
         till they are finished.
         """
+        generator = (i for i in range(0, 1))
+        mock_generate_item_urls.return_value = generator
+
         self.pipeline.get_item_properties()
 
         mock_inform.assert_called_once_with("Collecting item properties")
 
-        mock_employ_worker.assert_any_call(self.pipeline.produce_item_urls)
         mock_employ_worker.assert_any_call(self.pipeline.collect_data)
         mock_employ_worker.assert_any_call(self.pipeline.store_data)
         mock_employ_worker.assert_any_call(self.pipeline.switch_power)
-        mock_get_html.assert_called_once_with()
+        mock_get_html.assert_called_once_with(generator)
         mock_release_workers.assert_called_once_with()
+
+
+class TestDockerizedPipeline(TestPipelineBase):
+    pipeline_class = DockerizedPipeline
+
+    @patch("scrapemeagain.pipeline.Pipeline.inform")
+    def test_inform(self, mock_inform):
+        self.pipeline.inform("message")
+
+        mock_inform.assert_called_once_with("message", end="\n", log=True)
