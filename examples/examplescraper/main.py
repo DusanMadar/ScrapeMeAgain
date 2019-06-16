@@ -20,7 +20,7 @@ tor_ip_changer = TorIpChanger(
 )
 
 # Configure useragents.
-Config.USER_AGENTS = get_user_agents()
+Config.USER_AGENTS = get_user_agents(__file__)
 
 # Configure logging.
 setup_logging(logger_name="example-scraper")

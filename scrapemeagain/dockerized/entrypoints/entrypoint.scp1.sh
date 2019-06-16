@@ -8,8 +8,10 @@ set -e
 
 /bin/sh $APP_SRC_DIR/dockerized/entrypoints/entrypoint.base.sh
 
+scraper_main_file=$SCP_DIR/$SCRAPER_PACKAGE/main_dockerized.py
+
 # Ensure `useragents.json` is ready.
-python3 -c 'from scrapemeagain.utils.useragents import get_user_agents; get_user_agents()'
+python3 -c 'from scrapemeagain.utils.useragents import get_user_agents; get_user_agents("'$scraper_main_file'")'
 
 # Wait for each sub-service to start before starting anotherone.
 python3 $APP_SRC_DIR/dockerized/apps/ipstore/server.py &
@@ -22,7 +24,7 @@ python3 $APP_SRC_DIR/dockerized/apps/healthcheck/server.py &
 python3 $APP_SRC_DIR/dockerized/apps/healthcheck/test.py $HEALTHCHECK_PORT
 
 # NOTE use `python3 -u <file>` to unbuffer stdout and stderr, e.g. for debugging.
-python3 -u $SCP_DIR/$SCRAPER_PACKAGE/main_dockerized.py
+python3 -u $scraper_main_file
 
 python3 -c 'from scrapemeagain.dockerized.utils import wait_for_other_scrapers; wait_for_other_scrapers()'
 

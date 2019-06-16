@@ -11,10 +11,6 @@ from scrapemeagain.utils.alnum import DATE_FORMAT, get_current_date
 USER_AGENTS_URL = (
     "https://techblog.willshouse.com/2012/01/03/most-common-user-agents/"
 )
-USER_AGENTS_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-    "useragents.json",
-)
 
 
 def _scrape_user_agents():
@@ -30,16 +26,16 @@ def _scrape_user_agents():
     return user_agents
 
 
-def _save_user_agents(user_agents):
+def _save_user_agents(user_agents, user_agents_file):
     data = {"date": get_current_date(), "useragents": user_agents}
 
-    with open(USER_AGENTS_FILE, "w") as f:
+    with open(user_agents_file, "w") as f:
         json.dump(data, f, indent=2)
 
 
-def _scrape_and_save_user_agents():
+def _scrape_and_save_user_agents(user_agents_file):
     user_agents = _scrape_user_agents()
-    _save_user_agents(user_agents)
+    _save_user_agents(user_agents, user_agents_file)
 
     return user_agents
 
@@ -53,15 +49,17 @@ def _user_agents_are_old(user_agents):
     return delta.days > 30
 
 
-def get_user_agents():
-    return []
-    if not os.path.exists(USER_AGENTS_FILE):
-        return _scrape_and_save_user_agents()
+def get_user_agents(main__file__):
+    mains_dir = os.path.dirname(os.path.abspath(main__file__))
+    user_agents_file = os.path.join(mains_dir, "useragents.json")
 
-    with open(USER_AGENTS_FILE, "r") as f:
+    if not os.path.exists(user_agents_file):
+        return _scrape_and_save_user_agents(user_agents_file)
+
+    with open(user_agents_file, "r") as f:
         user_agents = json.load(f)
 
     if _user_agents_are_old(user_agents):
-        return _scrape_and_save_user_agents()
+        return _scrape_and_save_user_agents(user_agents_file)
 
     return set(user_agents["useragents"])
