@@ -54,10 +54,7 @@ def create_scraper_service(id, package, path, config):
             "TOR_PASSWORD": Config.TOR_PASSWORD,
             "PRIVOXY_PORT": Config.PRIVOXY_PORT,
             "PRIVOXY_HOST": Config.PRIVOXY_HOST,
-            "IPSTORE_PORT": Config.IPSTORE_PORT,
-            "URLBROKER_PORT": Config.URLBROKER_PORT,
-            "DATASTORE_PORT": Config.DATASTORE_PORT,
-            "HEALTHCHECK_PORT": Config.HEALTHCHECK_PORT,
+            "CONTROLLER_PORT": Config.CONTROLLER_PORT,
         },
     }
 

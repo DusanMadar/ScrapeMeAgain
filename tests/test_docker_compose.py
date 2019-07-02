@@ -11,7 +11,7 @@ EXPECTED_EXAMPLESCRAPER_COMPOSE = """
 version: '3'
 services:
   examplescraper-scp1:
-    image: dusanmadar/scrapemeagain:1.0.6
+    image: dusanmadar/scrapemeagain:1.0.7
     entrypoint: /scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scp1.sh
     volumes:
       - /tmp/examplescraper:/scp/examplescraper
@@ -25,12 +25,9 @@ services:
       - TOR_PASSWORD=I-solemnly-swear-I-am-up-to-no-good
       - PRIVOXY_PORT=8118
       - PRIVOXY_HOST=127.0.0.1
-      - IPSTORE_PORT=5000
-      - URLBROKER_PORT=6000
-      - DATASTORE_PORT=7000
-      - HEALTHCHECK_PORT=8000
+      - CONTROLLER_PORT=5000
   examplescraper-scp2:
-    image: dusanmadar/scrapemeagain:1.0.6
+    image: dusanmadar/scrapemeagain:1.0.7
     entrypoint: /scrapemeagain/scrapemeagain/dockerized/entrypoints/entrypoint.scpx.sh
     volumes:
       - /tmp/examplescraper:/scp/examplescraper
@@ -44,10 +41,7 @@ services:
       - TOR_PASSWORD=I-solemnly-swear-I-am-up-to-no-good
       - PRIVOXY_PORT=8118
       - PRIVOXY_HOST=127.0.0.1
-      - IPSTORE_PORT=5000
-      - URLBROKER_PORT=6000
-      - DATASTORE_PORT=7000
-      - HEALTHCHECK_PORT=8000
+      - CONTROLLER_PORT=5000
 """.strip()  # noqa
 
 

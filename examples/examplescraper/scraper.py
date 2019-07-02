@@ -1,8 +1,8 @@
 import os
 
 from bs4 import BeautifulSoup
-from scrapemeagain.dockerized.apps.urlbroker import (
-    client as urlbroker_client,
+from scrapemeagain.dockerized.controller import (
+    client as controller_client,
     urlbrokers,
 )
 from scrapemeagain.dockerized.utils import inside_condainer
@@ -75,7 +75,7 @@ class DockerizedExampleScraper(ExampleScraper):
     @property
     def list_urls_range(self):
         if not hasattr(self, "_list_urls_range"):
-            self._list_urls_range = urlbroker_client.get_list_urls_range()
+            self._list_urls_range = controller_client.get_list_urls_range()
 
         return self._list_urls_range
 

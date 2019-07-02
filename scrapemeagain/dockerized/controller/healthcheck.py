@@ -7,7 +7,7 @@ from requests import get, RequestException
 
 if __name__ == "__main__":
     host = os.environ.get("SERVICE_NAME_MASTER_SCRAPER")
-    port = sys.argv[1]
+    port = os.environ.get("CONTROLLER_PORT")
     url = "http://{host}:{port}/health/".format(host=host, port=port)
 
     i = 0
