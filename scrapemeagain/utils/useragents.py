@@ -8,22 +8,34 @@ from bs4 import BeautifulSoup
 from scrapemeagain.utils.alnum import DATE_FORMAT, get_current_date
 
 
-USER_AGENTS_URL = (
-    "https://techblog.willshouse.com/2012/01/03/most-common-user-agents/"
+USER_AGENTS_URL_TEMPLATE = (
+    "http://www.useragentstring.com/pages/useragentstring.php?name={browser}"
 )
 
 
 def _scrape_user_agents():
-    response = get(USER_AGENTS_URL)
-    soup = BeautifulSoup(response.content, "html.parser")
+    useragents = []
 
-    user_agents = soup.findAll("td", {"class": "useragent"})
-    user_agents = [user_agent.text for user_agent in user_agents]
+    for browser in ("firefox", "chrome", "internet+explorer", "edge", "opera"):
+        response = get(USER_AGENTS_URL_TEMPLATE.format(browser=browser))
+        soup = BeautifulSoup(response.content, "html.parser")
 
-    if not user_agents:
-        raise ValueError("No user agents found!")
+        browser_useragents = []
+        browser_useragents_full = False
+        for ul in soup.findAll("ul"):
+            if browser_useragents_full:
+                break
 
-    return user_agents
+            for li in ul.findAll("li"):
+                if len(browser_useragents) >= 50:
+                    browser_useragents_full = True
+                    break
+
+                browser_useragents.append(li.text)
+
+        useragents.extend(browser_useragents)
+
+    return useragents
 
 
 def _save_user_agents(user_agents, user_agents_file):

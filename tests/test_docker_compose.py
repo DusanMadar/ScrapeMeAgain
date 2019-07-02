@@ -48,7 +48,7 @@ services:
       - URLBROKER_PORT=6000
       - DATASTORE_PORT=7000
       - HEALTHCHECK_PORT=8000
-""".strip()
+""".strip()  # noqa
 
 
 class DockerComposeTestCase(unittest.TestCase):
