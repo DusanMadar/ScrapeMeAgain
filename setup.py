@@ -11,6 +11,7 @@ def read(fname, readlines=False):
 
 
 requirements = read("requirements.txt", True)
+requirements_dev = read("requirements.dev.txt", True)
 
 
 setup(
@@ -31,7 +32,7 @@ setup(
     platforms="linux",
     python_requires=">=3.6",
     install_requires=requirements,
-    tests_require=requirements,
+    tests_require=requirements + requirements_dev,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Web Environment",

@@ -6,10 +6,8 @@ from scrapemeagain.dockerized.utils import (
     apply_scraper_config,
     get_class_from_path,
 )
-from scrapemeagain.utils.logger import setup_logging
 
 
-setup_logging(__name__)
 apply_scraper_config()
 
 

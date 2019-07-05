@@ -12,7 +12,7 @@ from examplescraper.model import ExampleDataTable
 
 
 class ExampleScraper(BaseScraper):
-    base_url = "http://localhost:9090/posts/"
+    base_url = "https://localhost:9090/posts/"
     list_url_template = "?page="
 
     db_file = "example"

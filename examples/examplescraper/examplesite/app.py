@@ -31,10 +31,14 @@ def post_list():
 
 
 def simulate_response_delay(id):
-    if (id % 10 == 0) and len(timeouted_posts) <= 5:
+    if (id % 10 == 0) and len(timeouted_posts) <= 2:
         if id not in timeouted_posts:
             timeouted_posts.append(id)
-            time.sleep(random.randint(0, Config.REQUEST_TIMEOUT))
+            time.sleep(
+                random.randint(
+                    Config.REQUEST_TIMEOUT, Config.REQUEST_TIMEOUT + 2
+                )
+            )
 
 
 @app.route("/posts/<int:id>")
@@ -49,4 +53,6 @@ if __name__ == "__main__":
     except IndexError:
         host = "localhost"
 
-    app.run(host=host, port=9090)
+    # NOTE: `run` settings has to be in sync with the one in
+    # `IntegrationTestCase._run_examplesite()`.
+    app.run(host=host, port=9090, ssl_context="adhoc")

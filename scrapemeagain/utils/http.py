@@ -11,7 +11,6 @@ import aiohttp
 from scrapemeagain.config import Config
 
 
-HTTP_PROXY = f"http://{Config.LOCAL_HTTP_PROXY}"
 RESPONSE_LOG_MESSAGE = "{status} - {url}"
 
 Response = namedtuple("Response", "url status data")
@@ -31,7 +30,9 @@ async def aget(url, client, **kwargs):
 
     :returns `Response` instance
     """
-    kwargs["proxy"] = HTTP_PROXY
+    if Config.LOCAL_HTTP_PROXY:
+        kwargs["proxy"] = f"http://{Config.LOCAL_HTTP_PROXY}"
+
     kwargs["headers"] = {"User-Agent": sample(Config.USER_AGENTS, 1)[0]}
 
     try:

@@ -42,7 +42,10 @@ class IntegrationTestCase(unittest.TestCase):
 
     def _run_examplesite(self):
         p = multiprocessing.Process(
-            target=examplesite_app.run, args=(DOCKER_HOST_IP, 9090)
+            target=examplesite_app.run,
+            # NOTE: `run` settings has to be in sync with the one in
+            # `examplesite.app`.
+            kwargs=dict(host=DOCKER_HOST_IP, port=9090, ssl_context="adhoc"),
         )
         p.start()
 
