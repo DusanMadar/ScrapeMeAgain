@@ -1,5 +1,7 @@
 from examplescraper.config import Config
 
+Config.WORKERS_COUNT = 5
+
 # `examplesite` runs locally so we cannot route traffic via privoxy and tor.
 Config.LOCAL_HTTP_PROXY = ""
 

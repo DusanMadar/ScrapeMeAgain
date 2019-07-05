@@ -21,8 +21,8 @@ class TestPipelineBase(TestCase):
         self.pipeline.databaser.commit = Mock()
 
         #
-        # Mock multiprocessing (instead of calling 'prepare_multiprocessing').
-        # Mock pipeline's loop, loop.run_until_complete and aiohttp_client.
+        # Mock `prepare_pipeline()`.
+        # Mock pipeline's Pool and Pool.map.
         mock_loop = Mock()
         mock_loop.return_value.run_until_complete = Mock()
         self.pipeline.loop = mock_loop

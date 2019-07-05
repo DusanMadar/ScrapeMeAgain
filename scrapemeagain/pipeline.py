@@ -60,12 +60,12 @@ class Pipeline:
         self.databaser = databaser
         self.tor_ip_changer = tor_ip_changer
 
-        self.scrape_processes = Config.SCRAPE_PROCESSES
+        self.workers_count = Config.WORKERS_COUNT
 
         self.workers = []
 
-    def prepare_multiprocessing(self):
-        """Prepare all necessary multiprocessing objects."""
+    def prepare_pipeline(self):
+        """Prepare all necessary multithreading and multiprocessing objects."""
         self.url_queue = Queue()
         self.response_queue = Queue()
         self.data_queue = Queue()
@@ -115,59 +115,33 @@ class Pipeline:
         try:
             new_ip = self.tor_ip_changer.get_new_ip()
             logging.info("New IP: {new_ip}".format(new_ip=new_ip))
-        except:
+        except:  # noqa
             logging.error("Failed setting new IP")
             return self.change_ip()
 
-    def _produce_urls_wrapper(self, producer_function):
-        """Use the provided 'producer_function' to populate 'url_queue'
-        and get URLs count.
+    def generate_list_urls(self):
+        """Create a generator for populating `url_queue` with list URLs."""
+        put_urls = 0
+        for list_url in self.scraper.generate_list_urls():
+            self.url_queue.put(list_url)
 
-        :argument producer_function: how to produce URLs
-        :type producer_function: function/method
-        """
-        self.producing_urls_in_progress.set()
+            put_urls += 1
+            if put_urls == self.workers_count:
+                put_urls = 0
+                yield
 
-        urls_count = producer_function()
+    def generate_item_urls(self):
+        """Create a generator for populating `url_queue` with item URLs."""
+        query = self.databaser.get_item_urls()
 
-        self.inform("URLs to process: {}".format(urls_count))
-        time.sleep(1)
-        self.urls_to_process.value = urls_count
+        put_urls = 0
+        for item_url in query.yield_per(self.workers_count):
+            self.url_queue.put(item_url[0])
 
-        self.producing_urls_in_progress.clear()
-
-    def _actually_produce_list_urls(self):
-        return self.scraper.generate_list_urls()
-
-    def produce_list_urls(self):
-        """Populate 'url_queue' with generated list URLs."""
-
-        def producer_function():
-            urls_count = 0
-            for list_url in self._actually_produce_list_urls():
-                self.url_queue.put(list_url)
-                urls_count += 1
-
-            return urls_count
-
-        self._produce_urls_wrapper(producer_function)
-
-    def _actually_produce_item_urls(self):
-        return self.databaser.get_item_urls()
-
-    def produce_item_urls(self):
-        """Populate 'url_queue' with loaded item URLs."""
-
-        def producer_function():
-            urls_count = 0
-            for item_url in self._actually_produce_item_urls():
-                # Pick the URL from SQLAlchemy ResultProxy.
-                self.url_queue.put(item_url[0])
-                urls_count += 1
-
-            return urls_count
-
-        self._produce_urls_wrapper(producer_function)
+            put_urls += 1
+            if put_urls == self.workers_count:
+                put_urls = 0
+                yield
 
     def _classify_response(self, response):
         """Examine response and put it to 'response_queue' if it's OK or put
@@ -210,15 +184,22 @@ class Pipeline:
         finally:
             self.requesting_in_progress.clear()
 
-    def get_html(self):
+    def get_html(self, urls_generator):
         """Get HTML for URLs from 'url_queue'."""
         run = True
+        self.inform("URLs to process: {}".format(self.urls_to_process.value))
+        self.producing_urls_in_progress.set()
 
         with aiohttp_client_context(self):
             while run:
+                try:
+                    next(urls_generator)
+                except StopIteration:
+                    self.producing_urls_in_progress.clear()
+
                 urls_bucket = []
                 self.urls_bucket_empty.value = 1
-                for _ in range(0, self.scrape_processes):
+                for _ in range(0, self.workers_count):
                     url = self.url_queue.get()
 
                     if url == EXIT:
@@ -413,12 +394,9 @@ class Pipeline:
         for worker in self.workers:
             worker.join()
 
-    def get_item_urls(self):
-        """Get item URLs from item list pages."""
-        self.inform("Collecting item URLs")
-
-        # scraper --> url_queue.
-        self.employ_worker(self.produce_list_urls)
+    def run(self, target, urls_count, generate_url_function):
+        self.inform("Collecting item {0}".format(target))
+        self.urls_to_process.value = urls_count
 
         # response_queue --> data_queue.
         self.employ_worker(self.collect_data)
@@ -431,31 +409,20 @@ class Pipeline:
 
         # NOTE Execution will block until 'get_html' is finished.
         # url_queue --> response_queue.
-        self.get_html()
+        urls_generator = generate_url_function()
+        self.get_html(urls_generator)
 
         self.release_workers()
+
+    def get_item_urls(self):
+        """Get item URLs from item list pages."""
+        urls_count = self.scraper.list_urls_count
+        self.run("URLs", urls_count, self.generate_list_urls)
 
     def get_item_properties(self):
         """Get item properties from item pages."""
-        self.inform("Collecting item properties")
-
-        # DB --> url_queue.
-        self.employ_worker(self.produce_item_urls)
-
-        # response_queue --> data_queue.
-        self.employ_worker(self.collect_data)
-
-        # data_queue --> DB.
-        self.employ_worker(self.store_data)
-
-        # Prevent running forever.
-        self.employ_worker(self.switch_power)
-
-        # NOTE Execution will block until 'get_html' is finished.
-        # url_queue --> response_queue.
-        self.get_html()
-
-        self.release_workers()
+        urls_count = self.databaser.get_item_urls().count()
+        self.run("properties", urls_count, self.generate_item_urls)
 
 
 class DockerizedPipeline(Pipeline):

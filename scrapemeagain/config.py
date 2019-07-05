@@ -13,8 +13,8 @@ class Config:
 
     #
     # Scraping settings.
-    # Number of processes used to asynchronously scrape data from URLs.
-    SCRAPE_PROCESSES = 50
+    # Number of threads used to asynchronously scrape data from URLs.
+    WORKERS_COUNT = 50
 
     # How long to wait for a response (in seconds).
     REQUEST_TIMEOUT = 10
@@ -55,28 +55,22 @@ class Config:
     #
     # Orchestration.
     SCRAPERS_COUNT = 1
+    CONTROLLER_PORT = 5000
 
     #
     # IpStore.
-    IPSTORE_PORT = 5000
     IPSTORE_REUSE_THRESHOLD = REUSE_THRESHOLD * SCRAPERS_COUNT
 
     #
     # URLBroker.
-    URLBROKER_PORT = 6000
     # NOTE each scraper MUST set a custom `ListUrlsBroker` subclass in
     # 'scrapemeagain.scrapers.{your scraper}.config.URLBROKER_CLASS'
     URLBROKER_CLASS = (
-        "scrapemeagain.dockerized.apps.urlbroker.urlbrokers.ListUrlsBroker"
+        "scrapemeagain.dockerized.controller.urlbrokers.ListUrlsBroker"
     )
 
     #
     # DataStore.
-    DATASTORE_PORT = 7000
     # NOTE set 'scrapemeagain.scrapers.{your scraper}.config.DATASTORE_CLASS'
     # if your scraper adds custom functionality to `DataStoreDatabaser`.
     DATASTORE_DATABASER_CLASS = "scrapemeagain.databaser.DataStoreDatabaser"
-
-    #
-    # Healthcheck.
-    HEALTHCHECK_PORT = 8000

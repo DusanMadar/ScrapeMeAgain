@@ -1,0 +1,3 @@
+include requirements.txt
+include scrapemeagain/dockerized/entrypoints/*.sh
+include scrapemeagain/dockerized/docker-compose.yml

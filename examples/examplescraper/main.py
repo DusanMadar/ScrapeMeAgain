@@ -20,7 +20,7 @@ tor_ip_changer = TorIpChanger(
 )
 
 # Configure useragents.
-Config.USER_AGENTS = get_user_agents()
+Config.USER_AGENTS = get_user_agents(__file__)
 
 # Configure logging.
 setup_logging(logger_name="example-scraper")
@@ -30,7 +30,7 @@ setup_logging(logger_name="example-scraper")
 scraper = ExampleScraper()
 databaser = Databaser(scraper.db_file, scraper.db_table)
 pipeline = Pipeline(scraper, databaser, tor_ip_changer)
-pipeline.prepare_multiprocessing()
+pipeline.prepare_pipeline()
 
 try:
     services.start_backbone_services()

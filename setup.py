@@ -14,7 +14,7 @@ requirements = read("requirements.txt", True)
 
 
 setup(
-    version="1.0.2",
+    version="1.0.5",
     name="scrapemeagain",
     url="https://github.com/DusanMadar/ScrapeMeAgain",
     author="Dusan Madar",
@@ -25,6 +25,7 @@ setup(
     keywords="web scraper",
     packages=find_packages(),
     scripts=["scripts/scrapemeagain-compose.py"],
+    include_package_data=True,
     test_suite="tests",
     license="MIT",
     platforms="linux",

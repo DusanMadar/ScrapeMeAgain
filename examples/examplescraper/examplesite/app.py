@@ -2,7 +2,7 @@ import random
 import sys
 import time
 
-from flask import Flask, render_template, request
+from flask import Flask, redirect, render_template, request, url_for
 
 from examplescraper.config import Config
 
@@ -14,6 +14,9 @@ timeouted_posts = []
 @app.route("/posts/")
 def post_list():
     page = int(request.args.get("page", 1))
+    if page < 1:
+        return redirect(url_for("post_list"))
+
     page_prev = page - 1
     page_next = page + 1
     page *= 10

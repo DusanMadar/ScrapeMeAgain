@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from scrapemeagain.config import Config
-from scrapemeagain.dockerized.apps.datastore import client as datastore_client
+from scrapemeagain.dockerized.controller import client as controller_client
 from scrapemeagain.scrapers.basemodel import ItemUrlsTable
 
 
@@ -238,7 +238,7 @@ class DockerizedDatabaser(UrlsOnlyDatabaser):
             # Store item data remotely
             # (`self.item_data_table = None` as we are a `UrlsOnlyDatabaser`).
             data = self.serialize_data(data)
-            datastore_client.insert_data(data)
+            controller_client.insert_data(data)
         else:
             # Store item URLs locally.
             super()._actually_insert(data, table)
@@ -246,5 +246,5 @@ class DockerizedDatabaser(UrlsOnlyDatabaser):
         self.manage_transaction()
 
     def commit(self):
-        datastore_client.commit()
+        controller_client.commit()
         super().commit()

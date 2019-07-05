@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 from time import sleep
 import unittest
-import yaml
 
 from sqlalchemy import create_engine
 from scrapemeagain.dockerized.utils import get_inf_ip_address
@@ -14,7 +13,7 @@ from scrapemeagain.utils.alnum import DATE_FORMAT
 
 from examplescraper.config import Config
 from examplescraper.examplesite.app import app as examplesite_app
-from tests import REPO_DIR, EXAMPLESCRAPER_DIR
+from tests import EXAMPLESCRAPER_DIR
 from tests.utils import import_docker_compose
 
 
@@ -22,9 +21,7 @@ docker_compose = import_docker_compose()
 
 
 DOCKER_HOST_IP = get_inf_ip_address(Config.DOCKER_INTERFACE_NAME)
-
-USER_AGENTS_FILE = os.path.join(REPO_DIR, "useragents.json")
-USER_AGENTS_FILE_BACKUP = USER_AGENTS_FILE + ".bak"
+USER_AGENTS_FILE = os.path.join(EXAMPLESCRAPER_DIR, "useragents.json")
 FAKE_USER_AGENTS_JSON = {
     "date": datetime.today().strftime(DATE_FORMAT),
     "useragents": ["User Agent 1", "User Agent 2", "User Agent 3"],
@@ -34,18 +31,14 @@ FAKE_USER_AGENTS_JSON = {
 class IntegrationTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # Prevent populating useragents file.
-        if os.path.exists(USER_AGENTS_FILE):
-            os.rename(USER_AGENTS_FILE, USER_AGENTS_FILE_BACKUP)
-
-        if not os.path.exists(USER_AGENTS_FILE_BACKUP):
+        if not os.path.exists(USER_AGENTS_FILE):
             with open(USER_AGENTS_FILE, "w") as outfile:
                 json.dump(FAKE_USER_AGENTS_JSON, outfile)
 
     @classmethod
     def tearDownClass(cls):
-        if os.path.exists(USER_AGENTS_FILE_BACKUP):
-            os.rename(USER_AGENTS_FILE_BACKUP, USER_AGENTS_FILE)
+        if os.path.exists(USER_AGENTS_FILE):
+            os.remove(USER_AGENTS_FILE)
 
     def _run_examplesite(self):
         p = multiprocessing.Process(
@@ -56,10 +49,8 @@ class IntegrationTestCase(unittest.TestCase):
         return p
 
     def _run_examplescraper_compose(self):
-        scrapemeagain_compose = yaml.dump(
-            docker_compose.construct_compose_dict(
-                EXAMPLESCRAPER_DIR, "tests.integration.fake_config"
-            )
+        scrapemeagain_compose = docker_compose.construct_compose_file(
+            EXAMPLESCRAPER_DIR, "tests.integration.fake_config"
         )
         # ' - ' meaning: https://unix.stackexchange.com/a/16364/266262.
         command = "docker-compose -f - up --force-recreate"

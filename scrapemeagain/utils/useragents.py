@@ -5,41 +5,49 @@ import os
 from requests import get
 from bs4 import BeautifulSoup
 
-from .alnum import DATE_FORMAT, get_current_date
+from scrapemeagain.utils.alnum import DATE_FORMAT, get_current_date
 
 
-USER_AGENTS_URL = (
-    "https://techblog.willshouse.com/2012/01/03/most-common-user-agents/"
-)
-USER_AGENTS_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-    "useragents.json",
+USER_AGENTS_URL_TEMPLATE = (
+    "http://www.useragentstring.com/pages/useragentstring.php?name={browser}"
 )
 
 
 def _scrape_user_agents():
-    response = get(USER_AGENTS_URL)
-    soup = BeautifulSoup(response.content, "html.parser")
+    useragents = []
 
-    user_agents = soup.findAll("td", {"class": "useragent"})
-    user_agents = [user_agent.text for user_agent in user_agents]
+    for browser in ("firefox", "chrome", "internet+explorer", "edge", "opera"):
+        response = get(USER_AGENTS_URL_TEMPLATE.format(browser=browser))
+        soup = BeautifulSoup(response.content, "html.parser")
 
-    if not user_agents:
-        raise ValueError("No user agents found!")
+        browser_useragents = []
+        browser_useragents_full = False
+        for ul in soup.findAll("ul"):
+            if browser_useragents_full:
+                break
 
-    return user_agents
+            for li in ul.findAll("li"):
+                if len(browser_useragents) >= 50:
+                    browser_useragents_full = True
+                    break
+
+                browser_useragents.append(li.text)
+
+        useragents.extend(browser_useragents)
+
+    return useragents
 
 
-def _save_user_agents(user_agents):
+def _save_user_agents(user_agents, user_agents_file):
     data = {"date": get_current_date(), "useragents": user_agents}
 
-    with open(USER_AGENTS_FILE, "w") as f:
+    with open(user_agents_file, "w") as f:
         json.dump(data, f, indent=2)
 
 
-def _scrape_and_save_user_agents():
+def _scrape_and_save_user_agents(user_agents_file):
     user_agents = _scrape_user_agents()
-    _save_user_agents(user_agents)
+    _save_user_agents(user_agents, user_agents_file)
 
     return user_agents
 
@@ -53,14 +61,17 @@ def _user_agents_are_old(user_agents):
     return delta.days > 30
 
 
-def get_user_agents():
-    if not os.path.exists(USER_AGENTS_FILE):
-        return _scrape_and_save_user_agents()
+def get_user_agents(main__file__):
+    mains_dir = os.path.dirname(os.path.abspath(main__file__))
+    user_agents_file = os.path.join(mains_dir, "useragents.json")
 
-    with open(USER_AGENTS_FILE, "r") as f:
+    if not os.path.exists(user_agents_file):
+        return _scrape_and_save_user_agents(user_agents_file)
+
+    with open(user_agents_file, "r") as f:
         user_agents = json.load(f)
 
     if _user_agents_are_old(user_agents):
-        return _scrape_and_save_user_agents()
+        return _scrape_and_save_user_agents(user_agents_file)
 
     return set(user_agents["useragents"])

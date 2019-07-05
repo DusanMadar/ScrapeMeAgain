@@ -14,7 +14,7 @@ from examplescraper.scraper import DockerizedExampleScraper
 # Update config, setup logging and useragents.
 apply_scraper_config()
 setup_logging(logger_name="examplescraper")
-Config.USER_AGENTS = get_user_agents()
+Config.USER_AGENTS = get_user_agents(__file__)
 
 
 # Configure DockerizedTorIpChanger.
@@ -31,7 +31,7 @@ tor_ip_changer = toripchanger_class(
 scraper = DockerizedExampleScraper()
 databaser = DockerizedDatabaser(scraper.db_file)
 pipeline = DockerizedPipeline(scraper, databaser, tor_ip_changer)
-pipeline.prepare_multiprocessing()
+pipeline.prepare_pipeline()
 
 
 if __name__ == "__main__":
