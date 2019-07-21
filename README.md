@@ -9,7 +9,7 @@ ScrapeMeAgain is a Python 3 powered web scraper. It uses multithreading ([`Threa
 
 ## Installation
 
-```
+```bash
 pip install scrapemeagain
 ```
 
@@ -41,7 +41,7 @@ Your scraper must define `config.py` and `main_dockerized.py`. These two names a
 
 1. Get Docker host Ip
 
-```
+```bash
 ip addr show docker0
 ```
 
@@ -49,7 +49,7 @@ ip addr show docker0
 
 2. Run `examplesite` on Docker host IP
 
-```
+```bash
 python3 examples/examplescraper/examplesite/app.py 172.17.0.1
 ```
 
@@ -57,7 +57,7 @@ python3 examples/examplescraper/examplesite/app.py 172.17.0.1
 
 3. Start `docker-compose`
 
-```
+```bash
 scrapemeagain-compose.py -s $(pwd)/examples/examplescraper -c tests.integration.fake_config | docker-compose -f - up
 ```
 
@@ -67,13 +67,13 @@ scrapemeagain-compose.py -s $(pwd)/examples/examplescraper -c tests.integration.
 
 1. Run `examplesite`
 
-```
+```bash
 python3 examples/examplescraper/examplesite/app.py
 ```
 
 2. Start `examplescraper`
 
-```
+```bash
 python3 examples/examplescraper/main.py
 ```
 
@@ -88,7 +88,7 @@ To simplify running integration tests with latest changes:
 
 - and make sure to rebuild the image locally before running tests, e.g.
 
-```
+```bash
 docker build . -t scp:latest; python -m unittest discover -p test_integration.py
 ```
 
